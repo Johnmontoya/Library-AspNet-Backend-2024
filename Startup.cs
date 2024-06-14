@@ -8,6 +8,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Options;
+using Backend.Interfaces;
+using Backend.Core;
+using Backend.Dtos;
 
 namespace Backend
 {
@@ -47,6 +50,10 @@ namespace Backend
                 })
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders();
+
+            //Envio de emails
+            services.AddTransient<IMailService, MailService>();
+            services.Configure<MailSettingDto>(Configuration.GetSection("MailSettings"));
 
             services.AddAuthentication(options =>
             {

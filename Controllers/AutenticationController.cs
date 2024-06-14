@@ -1,5 +1,6 @@
 ﻿using Backend.Database;
 using Backend.Dtos;
+using Backend.Interfaces;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -7,8 +8,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OData.UriParser;
 using System.CodeDom.Compiler;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 
@@ -21,14 +24,16 @@ namespace Backend.Controllers
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly SignInManager<Authentication> _signInManager;
         private readonly IConfiguration _configuration;
+        private readonly IMailService _mailService;
 
-        public AutenticationController(AppDbContext context, UserManager<Authentication> userManager, RoleManager<IdentityRole> roleManager, SignInManager<Authentication> signInManager, IConfiguration configuration)
+        public AutenticationController(AppDbContext context, UserManager<Authentication> userManager, RoleManager<IdentityRole> roleManager, SignInManager<Authentication> signInManager, IConfiguration configuration, IMailService mailService)
         {
             _context = context;
             _userManager = userManager;
             _roleManager = roleManager;
             _signInManager = signInManager;
             _configuration = configuration;
+            _mailService = mailService;
         }
 
         [AllowAnonymous]
@@ -79,6 +84,11 @@ namespace Backend.Controllers
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
+            if (!ModelState.IsValid) 
+            {
+                return BadRequest();
+            }
+
             var user = new Authentication
             {
                 Email = registerDto.Email,
@@ -92,9 +102,46 @@ namespace Backend.Controllers
                 return BadRequest();
             }
 
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var resetLink = $"http://localhost:4200/confirm-email?userId={user.Id}&token={WebUtility.UrlEncode(token)}";
+
+            HTMLMailDto hTMLMailDto = new HTMLMailDto()
+            {
+                EmailToId = user.Email,
+                EmailToName = user.UserName,
+                ResetLink = resetLink
+            };
+
+            _mailService.SendHTMLMail(hTMLMailDto, "EmailConfirmed");
+
             await _userManager.AddToRoleAsync(user, "User");
 
             return Ok();
+        }
+
+        [HttpGet("Confirm-email")]
+        public async Task<IActionResult> ConfirmEmail(string userId, string token)
+        {
+            if (userId == null || token == null)
+            {
+                return BadRequest("Invalid confirmation request.");
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+            {
+                return BadRequest("Usuario no encontrado");
+            }
+
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+
+            if(!result.Succeeded)
+            {
+                return BadRequest("Error al confirmar");                
+            }
+
+            return Ok("Email confirmado"); 
         }
 
         private string GenerateJwtToken(IdentityUser user)
