@@ -144,6 +144,62 @@ namespace Backend.Controllers
             return Ok("Email confirmado"); 
         }
 
+        [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(string Email)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(Email);
+
+                if (user == null)
+                {
+                    return BadRequest("El usuario no se encuentra");
+                }
+
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var resetLink = $"http://localhost:4200/reset-password?email={user.Email}&token={WebUtility.UrlEncode(token)}";
+
+                //Implementar las funcionalidades del servicio de mensajeria
+                HTMLMailDto htmlMailDto = new HTMLMailDto()
+                {
+                    EmailToId = user.Email,
+                    EmailToName = user.UserName,
+                    ResetLink = resetLink
+                };
+
+                _mailService.SendHTMLMail(htmlMailDto, "resetPassword");
+
+                return Ok("Hemos enviado un email con un link para proceder con el cambio de contraseña");
+            }
+            catch (Exception err)
+            {
+                Console.WriteLine(err);
+                return BadRequest("Ha ocurrido un error con el proveedor del servicio de correo");
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto resetPasswordDto)
+        {
+            var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email!);
+
+            if (user == null)
+            {
+                return BadRequest("El usuario no se encuentra");
+            }
+
+            var result = await _userManager.ResetPasswordAsync(user, resetPasswordDto.Token!, resetPasswordDto.NewPassword!);
+
+            if(!result.Succeeded)
+            {
+                return BadRequest("Error al cambiar el password");
+            }
+
+            return Ok("El password ha sido cambiado");
+        }
+
         private string GenerateJwtToken(IdentityUser user)
         {
             var claims = new[]
