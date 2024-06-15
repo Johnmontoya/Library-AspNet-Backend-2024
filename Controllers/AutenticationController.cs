@@ -277,7 +277,7 @@ namespace Backend.Controllers
         }
 
         [HttpPut("add-phonenumber/{id}")]
-        public async Task<IActionResult> ModificarUsuario([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
+        public async Task<IActionResult> RegisterPhone([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByNameAsync(currentUserId!);
@@ -426,6 +426,33 @@ namespace Backend.Controllers
             await _userManager.UpdateAsync(user);
 
             return Ok("La cuenta ha sido activada");
+        }
+
+        [HttpPut("usuario")]
+        public async Task<IActionResult> ModificarUsuario([FromBody] UsuarioDto usuarioDto)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var auth = await _userManager.FindByNameAsync(currentUserId!);
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var user = await _usuarioDAO.ObtenerPorIdAsync(id: usuarioDto.Id!);
+            if (user is null)
+            {
+                return BadRequest("Usuario no encontrado");
+            }
+
+            var result = await _usuarioDAO.ModificarAsync(usuarioDto.Id!, usuarioDto, auth!);
+
+            if (!result)
+            {
+                return BadRequest("Error al actualizar los datos");
+            }
+
+            return Ok("Datos personales actualizados");
         }
 
         private string GenerateJwtToken(IdentityUser user)
