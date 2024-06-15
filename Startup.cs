@@ -7,7 +7,6 @@ using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.Options;
 using Backend.Interfaces;
 using Backend.Core;
 using Backend.Dtos;
@@ -50,6 +49,15 @@ namespace Backend
                 })
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders();
+
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                });
+
+            //OTP
+            services.AddTransient<IOTPService, OTPService>();
 
             //Envio de emails
             services.AddTransient<IMailService, MailService>();

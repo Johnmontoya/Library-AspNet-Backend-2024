@@ -3,13 +3,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Backend.Models.Entity_Configuration
 {
-    public class UsuarioConfiguration: IEntityTypeConfiguration<Authentication>
+    public class UsuarioConfiguration: IEntityTypeConfiguration<Usuario>
     {
-        public void Configure(EntityTypeBuilder<Authentication> builder)
+        public void Configure(EntityTypeBuilder<Usuario> builder)
         {
-            builder.HasIndex(c => new { c.UsuarioId })
-                .HasDatabaseName("UI_Usuario")
-                .IsUnique();
+            builder.HasOne(e => e.Authentication)
+                .WithOne(s => s.Usuario)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
+ 

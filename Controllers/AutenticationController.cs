@@ -1,22 +1,24 @@
-﻿using Backend.Database;
+﻿using Backend.Core;
+using Backend.DAO;
+using Backend.Database;
 using Backend.Dtos;
 using Backend.Interfaces;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OData.UriParser;
-using System.CodeDom.Compiler;
+using Org.BouncyCastle.Utilities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Backend.Controllers
 {
+    [Authorize]
     public class AutenticationController: ControllerBase
     {
         private readonly AppDbContext _context;
@@ -25,8 +27,10 @@ namespace Backend.Controllers
         private readonly SignInManager<Authentication> _signInManager;
         private readonly IConfiguration _configuration;
         private readonly IMailService _mailService;
+        private UsuarioDAO _usuarioDAO;
+        private readonly IOTPService _otpService;
 
-        public AutenticationController(AppDbContext context, UserManager<Authentication> userManager, RoleManager<IdentityRole> roleManager, SignInManager<Authentication> signInManager, IConfiguration configuration, IMailService mailService)
+        public AutenticationController(AppDbContext context, UserManager<Authentication> userManager, RoleManager<IdentityRole> roleManager, SignInManager<Authentication> signInManager, IConfiguration configuration, IMailService mailService, IOTPService otpService)
         {
             _context = context;
             _userManager = userManager;
@@ -34,6 +38,8 @@ namespace Backend.Controllers
             _signInManager = signInManager;
             _configuration = configuration;
             _mailService = mailService;
+            _usuarioDAO = new UsuarioDAO(_context, _userManager);
+            _otpService = otpService;
         }
 
         [AllowAnonymous]
@@ -50,6 +56,11 @@ namespace Backend.Controllers
             if (!user.EmailConfirmed) 
             {
                 return Unauthorized("El email no ha sido confirmado");
+            }
+
+            if(user.LockoutEnabled == false)
+            {
+                return Unauthorized("La cuenta se encuentra inhabilitada");
             }
 
             var lockUser = await _userManager.IsLockedOutAsync(user);
@@ -86,7 +97,7 @@ namespace Backend.Controllers
         {
             if (!ModelState.IsValid) 
             {
-                return BadRequest();
+                return BadRequest(ModelState);
             }
 
             var user = new Authentication
@@ -200,10 +211,228 @@ namespace Backend.Controllers
             return Ok("El password ha sido cambiado");
         }
 
+        [HttpGet("profile")]
+        public async Task<IActionResult> ProfileUser()
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (currentUserId == null)
+            {
+                return BadRequest("Usuario no autenticado");
+            }
+
+            var user = await _userManager.FindByNameAsync(currentUserId!);
+
+            if (user == null)
+            {
+                return BadRequest("Usuario no encontrado");
+            }
+
+            var usuario = await _usuarioDAO.GetUserId(user.Id);                      
+
+            if (usuario == null || usuario.AuthenticationId != user.Id)
+            {
+                return BadRequest("Información del usuario no encontrada o inconsistente");
+            }
+
+            return Ok(new UserDetailDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                UserName = user.UserName,
+                Roles = [.. await _userManager.GetRolesAsync(user)],
+                PhoneNumber = user.PhoneNumber,
+                PhoneNumberConfirmed = user.PhoneNumberConfirmed,
+                AccessFailedCount = user.AccessFailedCount,
+                Usuario = new UsuarioDto
+                {
+                    Id = usuario.Id,
+                    DNI = usuario.DNI,
+                    FechaNacimiento = usuario.FechaNacimiento,
+                    Direccion = usuario.Direccion,
+                    Ciudad = usuario.Ciudad
+                },
+            });
+        }
+
+        [HttpPost("usuario")]
+        public async Task<IActionResult> RegisterDataUser([FromBody] UsuarioDto usuarioDto)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByNameAsync(currentUserId!);
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }            
+
+            var data = await _usuarioDAO.AgregarAsync(usuarioDto, user!);
+
+            if (!data)
+            {
+                return BadRequest();
+            }
+            
+            return Ok("Datos personales guardados");
+        }
+
+        [HttpPut("add-phonenumber/{id}")]
+        public async Task<IActionResult> ModificarUsuario([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByNameAsync(currentUserId!);
+
+            if (user == null)
+            {
+                return Unauthorized("Usuario no encontrado.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var otp = await _otpService.GenerateAndSendOTP(autenticationDto.PhoneNumber!);
+
+            user.PhoneNumber = autenticationDto.PhoneNumber;
+            user.OTPSecurity = otp;
+            var data = await _userManager.UpdateAsync(user);
+
+            if (!data.Succeeded)
+            {
+                return BadRequest("Error al actualizar el número telefónico");
+            }            
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var resetLink = $"http://localhost:4200/verify-phone?user={user.Id}";
+
+            HTMLMailDto htmlMailDto = new HTMLMailDto()
+            {
+                EmailToId = user.Email,
+                EmailToName = otp,
+                ResetLink = resetLink
+            };
+
+            _mailService.SendHTMLMail(htmlMailDto, "resetPassword");
+
+            return Ok("OTP enviado.");
+        }
+
+        [HttpPut("number-verify/{id}")]
+        public async Task<IActionResult> VerifyOTP([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByNameAsync(currentUserId!);
+
+            if (user == null)
+            {
+                return Unauthorized("Usuario no encontrado.");
+            }
+
+            if(user.OTPSecurity != autenticationDto.Otp || user.PhoneNumber != autenticationDto.PhoneNumber)
+            {
+                return BadRequest("OTP inválido.");
+            }
+                        
+            user.PhoneNumberConfirmed = true;
+            var updateResult = await _userManager.UpdateAsync(user);
+
+            if (!updateResult.Succeeded)
+            {
+                return BadRequest("Error al actualizar el estado de verificación del número telefónico.");
+            }
+
+            return Ok("OTP verificado con éxito.");            
+        }
+
+        [HttpPut("change-password/{id}")]
+        public async Task<IActionResult> ChangePassword([FromRoute] string id, [FromBody] ChangePasswordDto changePasswordDto)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+
+            if (user is null)
+            {
+                return BadRequest("Usuario no encontrado");
+            }
+
+            var result = await _userManager.ChangePasswordAsync(user, changePasswordDto.CurrentPassword!, changePasswordDto.NewPassword!);
+
+            if (!result.Succeeded)
+            {
+                return BadRequest("Error con el cambio de password");
+            }
+
+            return Ok("La contraseña ha sido cambiada");
+        }
+
+        [HttpPut("deactived")]
+        public async Task<IActionResult> DeactivedUser()
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var user = await _userManager.FindByNameAsync(currentUserId!);
+            user!.LockoutEnabled = false;
+
+            await _userManager.UpdateAsync(user);
+
+            return Ok("Su cuenta ha sido inhabilitada");
+        }
+
+        [AllowAnonymous]
+        [HttpPost("active-email")]
+        public async Task<IActionResult> ActiveUser(string Email)
+        {
+            var user = await _userManager.FindByEmailAsync(Email!);
+
+            if(user is null)
+            {
+                return BadRequest("Usuario no encontrado");
+            }
+
+            var token = await _userManager.GenerateUserTokenAsync(user, TokenOptions.DefaultProvider, "ActiveUser");
+            var resetLink = $"http://localhost:4200/active-account?email={user.Email}&token={WebUtility.UrlEncode(token)}";
+
+            //Implementar las funcionalidades del servicio de mensajeria
+            HTMLMailDto htmlMailDto = new HTMLMailDto()
+            {
+                EmailToId = user.Email,
+                EmailToName = user.UserName,
+                ResetLink = resetLink
+            };
+
+            _mailService.SendHTMLMail(htmlMailDto, "activarCuenta");
+
+            return Ok("Hemos enviado un email con un link para reactivar su cuenta");
+        }
+
+        [AllowAnonymous]
+        [HttpPut("reactive-account")]
+        public async Task<IActionResult> ReactivedAccount(string Email, string token)
+        {
+            var user = await _userManager.FindByEmailAsync(Email!);
+
+            if(user is null)
+            {
+                return BadRequest("Usuario no encontrado");
+            }
+
+            var result = await _userManager.VerifyUserTokenAsync(user, TokenOptions.DefaultProvider, "ActiveUser", token);
+
+            if(!result)
+            {
+                return BadRequest("Error con el token de validacion");
+            }
+
+            user.LockoutEnabled = true;
+            await _userManager.UpdateAsync(user);
+
+            return Ok("La cuenta ha sido activada");
+        }
+
         private string GenerateJwtToken(IdentityUser user)
         {
             var claims = new[]
             {
+                new Claim(JwtRegisteredClaimNames.Sid, user.Id),
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserName!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
@@ -220,5 +449,6 @@ namespace Backend.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
     }
 }

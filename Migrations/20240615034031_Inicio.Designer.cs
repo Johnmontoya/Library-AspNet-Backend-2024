@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240613230816_Inicial")]
-    partial class Inicial
+    [Migration("20240615034031_Inicio")]
+    partial class Inicio
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -77,9 +77,6 @@ namespace Backend.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
-                    b.Property<string>("UsuarioId")
-                        .HasColumnType("Varchar(255)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
@@ -89,10 +86,6 @@ namespace Backend.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.HasIndex("UsuarioId")
-                        .IsUnique()
-                        .HasDatabaseName("UI_Usuario");
-
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
@@ -101,6 +94,9 @@ namespace Backend.Migrations
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("Varchar(255)");
+
+                    b.Property<string>("AuthenticationId")
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("Ciudad")
                         .IsRequired()
@@ -118,6 +114,9 @@ namespace Backend.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AuthenticationId")
+                        .IsUnique();
 
                     b.ToTable("Usuarios");
                 });
@@ -150,7 +149,7 @@ namespace Backend.Migrations
                     b.HasData(
                         new
                         {
-                            Id = "06f9f8e5-505f-4d16-a1f7-86b7c15c1db2",
+                            Id = "a46f3083-43bf-48db-9600-dd19083b842b",
                             Name = "User",
                             NormalizedName = "USER"
                         });
@@ -262,13 +261,14 @@ namespace Backend.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Backend.Models.Authentication", b =>
+            modelBuilder.Entity("Backend.Models.Usuario", b =>
                 {
-                    b.HasOne("Backend.Models.Usuario", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId");
+                    b.HasOne("Backend.Models.Authentication", "Authentication")
+                        .WithOne("Usuario")
+                        .HasForeignKey("Backend.Models.Usuario", "AuthenticationId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
-                    b.Navigation("Usuario");
+                    b.Navigation("Authentication");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -320,6 +320,11 @@ namespace Backend.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Backend.Models.Authentication", b =>
+                {
+                    b.Navigation("Usuario");
                 });
 #pragma warning restore 612, 618
         }
