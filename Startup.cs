@@ -67,13 +67,14 @@ namespace Backend
                     opt.User.RequireUniqueEmail = true;
                 })
                 .AddEntityFrameworkStores<AppDbContext>()
-                .AddDefaultTokenProviders();
+                .AddDefaultTokenProviders()
+                .AddApiEndpoints();
 
-            services.AddControllers()
-                .AddJsonOptions(options =>
+            services.AddControllers();
+                /*.AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
-                });
+                });*/
 
             //OTP
             services.AddTransient<IOTPService, OTPService>();

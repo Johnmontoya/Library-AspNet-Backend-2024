@@ -543,14 +543,23 @@ namespace Backend.Controllers
             return Ok("Datos personales actualizados");
         }
 
-        private string GenerateJwtToken(IdentityUser user)
+        private string GenerateJwtToken(Authentication user)
         {
-            var claims = new[]
+            var roles = _userManager.GetRolesAsync(user).Result;
+
+            // Crear una lista de claims y agregar los claims básicos
+            var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sid, user.Id),
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserName!),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+
+            // Agregar cada rol como un claim
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWTSetting:securityKey"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

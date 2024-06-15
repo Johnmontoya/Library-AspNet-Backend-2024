@@ -42,5 +42,10 @@ namespace Backend.Database
         /// </summary>
         public virtual DbSet<Authentication> Authentications { get; set; }
 
+        /// <summary>
+        /// Tabla de categorias
+        /// </summary>
+        public virtual DbSet<Categoria> Categorias { get; set; }
+
     }
 }
