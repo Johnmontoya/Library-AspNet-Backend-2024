@@ -6,10 +6,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Database
 {
+    /// <summary>
+    /// Contexto de la base de datos
+    /// </summary>
     public class AppDbContext: IdentityDbContext<Authentication>
     {
+        /// <summary>
+        /// Constructor de la clase
+        /// </summary>
+        /// <param name="options"></param>
         public AppDbContext(DbContextOptions<AppDbContext> options): base(options) { }
 
+        /// <summary>
+        /// Creacion de los modelos
+        /// </summary>
+        /// <param name="builder"></param>
         protected override void OnModelCreating(ModelBuilder builder)
         {
             builder.Entity<IdentityRole>().HasData(new IdentityRole
@@ -21,8 +32,14 @@ namespace Backend.Database
             base.OnModelCreating(builder);
         }
 
+        /// <summary>
+        /// Tabla usuarios
+        /// </summary>
         public virtual DbSet<Usuario> Usuarios { get; set; }
 
+        /// <summary>
+        /// Tabla de autenticacion (aspnetusers)
+        /// </summary>
         public virtual DbSet<Authentication> Authentications { get; set; }
 
     }

@@ -11,6 +11,7 @@ namespace Backend.Interfaces
         /// Validacion de la informacion del usuario
         /// </summary>
         /// <param name="hTMLMailDto"></param>
+        /// <param name="templateUse"></param>
         /// <returns></returns>
         bool SendHTMLMail(HTMLMailDto hTMLMailDto, string templateUse);
     }

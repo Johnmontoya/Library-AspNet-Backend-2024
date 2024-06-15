@@ -10,21 +10,40 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Backend.Interfaces;
 using Backend.Core;
 using Backend.Dtos;
+using System.Reflection;
 
 namespace Backend
 {
+    /// <summary>
+    /// Clase de configuraciñon de servicios
+    /// </summary>
     public class Startup
     {
+        /// <summary>
+        /// Acceso al archivo de configuración
+        /// </summary>
         public IConfiguration Configuration { get; }
 
+        /// <summary>
+        /// Acceso al enviroment
+        /// </summary>
         public IWebHostEnvironment CurrentEnvironment { get; }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="configuration"></param>
+        /// <param name="env"></param>
         public Startup(IConfiguration configuration, IWebHostEnvironment env)
         {
             Configuration = configuration;
             CurrentEnvironment = env;
         }
 
+        /// <summary>
+        /// Permite configurar los servicios de la aplicación
+        /// </summary>
+        /// <param name="services"></param>
         public void ConfigureServices(IServiceCollection services)
         {
             var serverVersion = new MySqlServerVersion(new Version(8, 0, 29));
@@ -128,10 +147,19 @@ namespace Backend
                         Url = new Uri("https://github.com/Johnmontoya")
                     }
                 });
+
+                var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                swagger.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+
             });
             services.AddCors();
         }
 
+        /// <summary>
+        /// Permite configurar la aplicación
+        /// </summary>
+        /// <param name="app"></param>
+        /// <param name="env"></param>
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if(env.IsDevelopment())

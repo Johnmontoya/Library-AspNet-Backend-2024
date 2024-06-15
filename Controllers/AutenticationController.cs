@@ -18,7 +18,12 @@ using System.Text;
 
 namespace Backend.Controllers
 {
+    /// <summary>
+    /// Controlador de la autenticacion y la tabla usuario
+    /// </summary>
     [Authorize]
+    [Route("api/")]
+    [ApiController]
     public class AutenticationController: ControllerBase
     {
         private readonly AppDbContext _context;
@@ -30,6 +35,16 @@ namespace Backend.Controllers
         private UsuarioDAO _usuarioDAO;
         private readonly IOTPService _otpService;
 
+        /// <summary>
+        /// Constructor de la clase
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="userManager"></param>
+        /// <param name="roleManager"></param>
+        /// <param name="signInManager"></param>
+        /// <param name="configuration"></param>
+        /// <param name="mailService"></param>
+        /// <param name="otpService"></param>
         public AutenticationController(AppDbContext context, UserManager<Authentication> userManager, RoleManager<IdentityRole> roleManager, SignInManager<Authentication> signInManager, IConfiguration configuration, IMailService mailService, IOTPService otpService)
         {
             _context = context;
@@ -42,6 +57,11 @@ namespace Backend.Controllers
             _otpService = otpService;
         }
 
+        /// <summary>
+        /// Iniciar Sesion
+        /// </summary>
+        /// <param name="loginDto"></param>
+        /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
@@ -91,6 +111,11 @@ namespace Backend.Controllers
             }
         }
 
+        /// <summary>
+        /// Registro de nuevo usuario
+        /// </summary>
+        /// <param name="registerDto"></param>
+        /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
@@ -130,6 +155,12 @@ namespace Backend.Controllers
             return Ok();
         }
 
+        /// <summary>
+        /// Confirmar El email despues del registro de usuario
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
         [HttpGet("Confirm-email")]
         public async Task<IActionResult> ConfirmEmail(string userId, string token)
         {
@@ -155,6 +186,11 @@ namespace Backend.Controllers
             return Ok("Email confirmado"); 
         }
 
+        /// <summary>
+        /// Envio de email con un token para la recuperacion de contraseña
+        /// </summary>
+        /// <param name="Email"></param>
+        /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword(string Email)
@@ -190,6 +226,11 @@ namespace Backend.Controllers
             }
         }
 
+        /// <summary>
+        /// Recuperacion de token y contraseña actual, y nueva para cambiar la contraseña
+        /// </summary>
+        /// <param name="resetPasswordDto"></param>
+        /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword(ResetPasswordDto resetPasswordDto)
@@ -211,6 +252,10 @@ namespace Backend.Controllers
             return Ok("El password ha sido cambiado");
         }
 
+        /// <summary>
+        /// Datos del usuario autenticado y datos personales
+        /// </summary>
+        /// <returns></returns>
         [HttpGet("profile")]
         public async Task<IActionResult> ProfileUser()
         {
@@ -255,6 +300,11 @@ namespace Backend.Controllers
             });
         }
 
+        /// <summary>
+        /// Registro de datos personales del usuario autenticado
+        /// </summary>
+        /// <param name="usuarioDto"></param>
+        /// <returns></returns>
         [HttpPost("usuario")]
         public async Task<IActionResult> RegisterDataUser([FromBody] UsuarioDto usuarioDto)
         {
@@ -276,6 +326,12 @@ namespace Backend.Controllers
             return Ok("Datos personales guardados");
         }
 
+        /// <summary>
+        /// Agregar el numero de celular y envio de OTP al correo
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="autenticationDto"></param>
+        /// <returns></returns>
         [HttpPut("add-phonenumber/{id}")]
         public async Task<IActionResult> RegisterPhone([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
         {
@@ -313,11 +369,17 @@ namespace Backend.Controllers
                 ResetLink = resetLink
             };
 
-            _mailService.SendHTMLMail(htmlMailDto, "resetPassword");
+            _mailService.SendHTMLMail(htmlMailDto, "otpNumber");
 
             return Ok("OTP enviado.");
         }
 
+        /// <summary>
+        /// Verificar numero de celular y codigo OTP
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="autenticationDto"></param>
+        /// <returns></returns>
         [HttpPut("number-verify/{id}")]
         public async Task<IActionResult> VerifyOTP([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
         {
@@ -345,6 +407,12 @@ namespace Backend.Controllers
             return Ok("OTP verificado con éxito.");            
         }
 
+        /// <summary>
+        /// Cambiar contraseña con usuario logueado
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="changePasswordDto"></param>
+        /// <returns></returns>
         [HttpPut("change-password/{id}")]
         public async Task<IActionResult> ChangePassword([FromRoute] string id, [FromBody] ChangePasswordDto changePasswordDto)
         {
@@ -365,6 +433,10 @@ namespace Backend.Controllers
             return Ok("La contraseña ha sido cambiada");
         }
 
+        /// <summary>
+        /// Desactivar la cuenta
+        /// </summary>
+        /// <returns></returns>
         [HttpPut("deactived")]
         public async Task<IActionResult> DeactivedUser()
         {
@@ -377,6 +449,11 @@ namespace Backend.Controllers
             return Ok("Su cuenta ha sido inhabilitada");
         }
 
+        /// <summary>
+        /// Enviar email para reactivacion de la cuenta
+        /// </summary>
+        /// <param name="Email"></param>
+        /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("active-email")]
         public async Task<IActionResult> ActiveUser(string Email)
@@ -404,6 +481,12 @@ namespace Backend.Controllers
             return Ok("Hemos enviado un email con un link para reactivar su cuenta");
         }
 
+        /// <summary>
+        /// Reactivacion de la cuenta meditante token y email
+        /// </summary>
+        /// <param name="Email"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
         [AllowAnonymous]
         [HttpPut("reactive-account")]
         public async Task<IActionResult> ReactivedAccount(string Email, string token)
@@ -428,6 +511,11 @@ namespace Backend.Controllers
             return Ok("La cuenta ha sido activada");
         }
 
+        /// <summary>
+        /// Modificar los datos personales del usuario
+        /// </summary>
+        /// <param name="usuarioDto"></param>
+        /// <returns></returns>
         [HttpPut("usuario")]
         public async Task<IActionResult> ModificarUsuario([FromBody] UsuarioDto usuarioDto)
         {

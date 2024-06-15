@@ -7,12 +7,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.DAO
 {
+    /// <summary>
+    /// Dao para el acceso a la funciones de crud
+    /// </summary>
     public class UsuarioDAO
     {
         private readonly AppDbContext _context;
         private AccessDAO<Usuario> _usuarioDAO;
         private readonly UserManager<Authentication> _userManager;
 
+        /// <summary>
+        /// Constructor de la clase
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="userManager"></param>
         public UsuarioDAO(AppDbContext context, UserManager<Authentication> userManager)
         {
             _context = context;
@@ -32,12 +40,23 @@ namespace Backend.DAO
             return result!;
         }
 
+        /// <summary>
+        /// Permite obtener un dato del usuario por su ID
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         public async Task<Usuario> ObtenerPorIdAsync(string id)
         {
             var result = await _usuarioDAO.ObtenerPorIdAsync(id);
             return result;
         }
 
+        /// <summary>
+        /// Permite agregar un usuario nuevo
+        /// </summary>
+        /// <param name="usuarioDto"></param>
+        /// <param name="auth"></param>
+        /// <returns></returns>
         public async Task<bool> AgregarAsync(UsuarioDto usuarioDto, Authentication auth)
         {
             List<IRegla> reglas = new List<IRegla>();
@@ -65,6 +84,13 @@ namespace Backend.DAO
             }
         }
 
+        /// <summary>
+        /// Permite actualizar la informacion de un usuario por su ID
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="usuarioDto"></param>
+        /// <param name="auth"></param>
+        /// <returns></returns>
         public async Task<bool> ModificarAsync(string id, UsuarioDto usuarioDto, Authentication auth)
         {
             List<IRegla> reglas = new List<IRegla>();

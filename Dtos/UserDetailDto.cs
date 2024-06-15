@@ -43,6 +43,9 @@ namespace Backend.Dtos
         /// </summary>
         public int AccessFailedCount { get; set; }
 
+        /// <summary>
+        /// Datos de la tabla usuario
+        /// </summary>
         public UsuarioDto? Usuario { get; set; }
     }
 }

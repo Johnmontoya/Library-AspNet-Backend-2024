@@ -2,6 +2,9 @@
 
 namespace Backend.Dtos
 {
+    /// <summary>
+    /// Clase de Validacion de registro de la tabla Aspnetusers
+    /// </summary>
     public class RegisterDto
     {
         /// <summary>

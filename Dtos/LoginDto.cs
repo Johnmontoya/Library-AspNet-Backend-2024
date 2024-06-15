@@ -2,6 +2,9 @@
 
 namespace Backend.Dtos
 {
+    /// <summary>
+    /// Clase de Validacion de Autenticacion
+    /// </summary>
     public class LoginDto
     {
         /// <summary>

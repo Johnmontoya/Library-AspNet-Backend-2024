@@ -6,6 +6,9 @@ using MimeKit;
 
 namespace Backend.Core
 {
+    /// <summary>
+    /// Clase para el envio de emails
+    /// </summary>
     public class MailService : IMailService
     {
         private readonly MailSettingDto _mailSettings;
@@ -49,26 +52,16 @@ namespace Backend.Core
                             filePath = Directory.GetCurrentDirectory() + "\\Templates\\ActivarCuenta.html";
                             break;
 
+                        case "otpNumber":
+                            emailMessage.Subject = "Verificar Celular";
+                            filePath = Directory.GetCurrentDirectory() + "\\Templates\\OtpNumber.html";
+                            break;
+
                         default:
                             emailMessage.Subject = "Confirmar Email";
                             filePath = Directory.GetCurrentDirectory() + "\\Templates\\EmailConfirmed.html";
                             break;
                     }
-
-                    /*if (templateUse == "resetPassword")
-                    {
-                        emailMessage.Subject = "Cambio de contraseña";
-                        filePath = Directory.GetCurrentDirectory() + "\\Templates\\EmailResetPassword.html";
-                    }
-                    else if (templateUse == "activarCuenta")
-                    {
-                        emailMessage.Subject = "Activar cuenta";
-                        filePath = Directory.GetCurrentDirectory() + "\\Templates\\ActivarCuenta.html";
-                    } else
-                    {
-                        emailMessage.Subject = "Confirmar Email";
-                        filePath = Directory.GetCurrentDirectory() + "\\Templates\\EmailConfirmed.html";
-                    }*/
 
                     string emailTemplateText = File.ReadAllText(filePath);
 

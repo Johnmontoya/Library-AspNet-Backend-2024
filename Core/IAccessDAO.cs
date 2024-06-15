@@ -1,5 +1,9 @@
 ﻿namespace Backend.Core
 {
+    /// <summary>
+    /// Interface para acceso a datos
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public interface IAccessDAO<T> where T : class
     {
         /// <summary>
