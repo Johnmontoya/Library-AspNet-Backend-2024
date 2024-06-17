@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.DAO
 {
+    /// <summary>
+    /// Funciones para acceso a los datos para los autores
+    /// </summary>
     public class AutorDAO
     {
         private readonly AppDbContext _context;

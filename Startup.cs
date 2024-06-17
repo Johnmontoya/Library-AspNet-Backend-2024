@@ -121,6 +121,7 @@ namespace Backend
             services.AddValidatorsFromAssemblyContaining<CategoriaValidator>();
             services.AddValidatorsFromAssemblyContaining<UsuarioValidator>();
             services.AddValidatorsFromAssemblyContaining<AutorValidator>();
+            services.AddValidatorsFromAssemblyContaining<LibroValidator>();
 
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(swagger =>
