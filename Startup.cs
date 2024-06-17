@@ -11,6 +11,10 @@ using Backend.Interfaces;
 using Backend.Core;
 using Backend.Dtos;
 using System.Reflection;
+using System.Text.Json;
+using FluentValidation;
+using Backend.Rules;
+using Backend.Validators;
 
 namespace Backend
 {
@@ -60,7 +64,7 @@ namespace Backend
             services.AddIdentity<Authentication, IdentityRole>(
                 opt =>
                 {
-                    //opt.SignIn.RequireConfirmedAccount = true;
+                    opt.SignIn.RequireConfirmedAccount = true;
                     opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(2);
                     opt.Lockout.MaxFailedAccessAttempts = 5;
                     opt.Lockout.AllowedForNewUsers = true;
@@ -68,9 +72,14 @@ namespace Backend
                 })
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders()
+                .AddErrorDescriber<CustomValidationIdentityError>()
                 .AddApiEndpoints();
 
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(options => {
+                    options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                });
+            
                 /*.AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
@@ -107,6 +116,10 @@ namespace Backend
             services.AddAuthorization();
             services.AddSingleton<System.TimeProvider>(System.TimeProvider.System);
             services.AddMvc();
+
+            services.AddValidatorsFromAssemblyContaining<CategoriaValidator>();
+            services.AddValidatorsFromAssemblyContaining<UsuarioValidator>();
+
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(swagger =>
             {

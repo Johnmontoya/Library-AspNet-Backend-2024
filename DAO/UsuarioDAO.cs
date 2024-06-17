@@ -59,7 +59,7 @@ namespace Backend.DAO
         /// <returns></returns>
         public async Task<bool> AgregarAsync(UsuarioDto usuarioDto, Authentication auth)
         {
-            List<IRegla> reglas = new List<IRegla>();
+            List<IRegla> reglas = new List<IRegla>();            
 
             var data = new Usuario
             {

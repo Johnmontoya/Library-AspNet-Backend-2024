@@ -1,5 +1,6 @@
 ﻿using Backend.Core;
 using Backend.Database;
+using Microsoft.AspNetCore.Http.HttpResults;
 using System.Data.Entity;
 
 namespace Backend.DAO
@@ -11,7 +12,12 @@ namespace Backend.DAO
     public class AccessDAO<TEntity> : IAccessDAO<TEntity> where TEntity : class
     {
         private readonly AppDbContext _context;
-        
+
+        /// <summary>
+        /// Mensaje de error personalizado
+        /// </summary>
+        public CustomError? customError;
+
         /// <summary>
         /// Constructor de la clase
         /// </summary>
@@ -20,6 +26,8 @@ namespace Backend.DAO
         {
             _context = context;
         }
+
+        CustomError IAccessDAO<TEntity>.customError { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         /// <summary>
         /// Permite agregar nuevos registros
@@ -33,6 +41,7 @@ namespace Backend.DAO
             {
                 if (!regla.EsCorrecto())
                 {
+                    customError = regla.customError;
                     return false;
                 }
             }
@@ -53,7 +62,11 @@ namespace Backend.DAO
             var registro = await ObtenerPorIdAsync(id);
 
             if (registro == null)
-            {                
+            {
+                customError = new CustomError("No encontrado", 404, new Dictionary<string, List<string>>
+                {
+                    { "NotFound", new List<string>{ "El registro que busca no existe" } }
+                });
                 return false;
             }
 
@@ -61,6 +74,7 @@ namespace Backend.DAO
             {
                 if (!regla.EsCorrecto())
                 {
+                    customError = regla.customError;
                     return false;
                 }
             }
@@ -90,6 +104,10 @@ namespace Backend.DAO
             var existingEntity = await _context.Set<TEntity>().FindAsync(id);
             if (existingEntity == null)
             {
+                customError = new CustomError("No encontrado", 404, new Dictionary<string, List<string>>
+                {
+                    { "NotFound", new List<string>{ "El registro que busca no existe" } }
+                });
                 return false;
             }
 

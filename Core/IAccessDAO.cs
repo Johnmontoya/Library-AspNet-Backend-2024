@@ -7,6 +7,11 @@
     public interface IAccessDAO<T> where T : class
     {
         /// <summary>
+        /// Errores
+        /// </summary>
+        CustomError customError { get; set; }
+
+        /// <summary>
         /// Obtiene todos los registros
         /// </summary>
         /// <returns></returns>

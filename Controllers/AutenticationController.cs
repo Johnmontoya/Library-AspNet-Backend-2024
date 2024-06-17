@@ -4,16 +4,15 @@ using Backend.Database;
 using Backend.Dtos;
 using Backend.Interfaces;
 using Backend.Models;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.IdentityModel.Tokens;
-using Org.BouncyCastle.Utilities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace Backend.Controllers
@@ -34,6 +33,12 @@ namespace Backend.Controllers
         private readonly IMailService _mailService;
         private UsuarioDAO _usuarioDAO;
         private readonly IOTPService _otpService;
+        private IValidator<UsuarioDto> _validator;
+
+        /// <summary>
+        /// Mensaje de error personalizado
+        /// </summary>
+        public CustomError? customError;
 
         /// <summary>
         /// Constructor de la clase
@@ -45,7 +50,16 @@ namespace Backend.Controllers
         /// <param name="configuration"></param>
         /// <param name="mailService"></param>
         /// <param name="otpService"></param>
-        public AutenticationController(AppDbContext context, UserManager<Authentication> userManager, RoleManager<IdentityRole> roleManager, SignInManager<Authentication> signInManager, IConfiguration configuration, IMailService mailService, IOTPService otpService)
+        /// <param name="validator"></param>
+        public AutenticationController(
+            AppDbContext context, 
+            UserManager<Authentication> userManager, 
+            RoleManager<IdentityRole> roleManager, 
+            SignInManager<Authentication> signInManager, 
+            IConfiguration configuration, 
+            IMailService mailService, 
+            IOTPService otpService,
+            IValidator<UsuarioDto> validator)
         {
             _context = context;
             _userManager = userManager;
@@ -55,6 +69,7 @@ namespace Backend.Controllers
             _mailService = mailService;
             _usuarioDAO = new UsuarioDAO(_context, _userManager);
             _otpService = otpService;
+            _validator = validator;
         }
 
         /// <summary>
@@ -64,23 +79,38 @@ namespace Backend.Controllers
         /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
+        public async Task<ActionResult<ApiResponseDto>> Login([FromBody] LoginDto loginDto)
         {
             var user = await _userManager.FindByEmailAsync(loginDto.Email!);
 
             if (user == null) 
             {
-                return Unauthorized("Usuario o password invalido");
+                return Unauthorized(new ApiResponseDto
+                {
+                    title = "Usuario o password invalido",
+                    status = 401,
+                    errors = null
+                });
             }
 
             if (!user.EmailConfirmed) 
             {
-                return Unauthorized("El email no ha sido confirmado");
+                return Unauthorized(new ApiResponseDto
+                {
+                    title = "El email no ha sido confirmado",
+                    status = 401,
+                    errors = null
+                });
             }
 
             if(user.LockoutEnabled == false)
             {
-                return Unauthorized("La cuenta se encuentra inhabilitada");
+                return Unauthorized(new ApiResponseDto
+                {
+                    title = "La cuenta se encuentra inhabilitada",
+                    status = 401,
+                    errors = null
+                });
             }
 
             var lockUser = await _userManager.IsLockedOutAsync(user);
@@ -88,7 +118,12 @@ namespace Backend.Controllers
             if (lockUser)
             {
                 var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
-                return Unauthorized($"El usuario ha sido bloqueado hasta {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}");
+                return Unauthorized(new ApiResponseDto
+                {
+                    title = $"El usuario ha sido bloqueado hasta {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}",
+                    status = 401,
+                    errors = null
+                });
             }
 
             var result = await _signInManager.PasswordSignInAsync(user, loginDto.Password!, isPersistent: false, lockoutOnFailure: true);
@@ -96,18 +131,34 @@ namespace Backend.Controllers
             if (result.IsLockedOut)
             {
                 var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
-                return Unauthorized($"El usuario ha sido bloqueado hasta {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}");
+                return Unauthorized(new ApiResponseDto
+                {
+                    title = $"El usuario ha sido bloqueado hasta {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}",
+                    status = 401,
+                    errors = null
+                });
             }
             else if (!result.Succeeded)
             {
                 await _userManager.AccessFailedAsync(user);
-                return Unauthorized("Usuario o password invalido");
+                return Unauthorized(new ApiResponseDto
+                {
+                    title = "Usuario o password invalido",
+                    status = 401,
+                    errors = null
+                });
             }
             else
             {
                 await _userManager.ResetAccessFailedCountAsync(user);
                 var token = GenerateJwtToken(user);
-                return Ok(new { token });
+                return Ok(new ApiResponseDto
+                {
+                    title = "Bienvenido",
+                    status = 200,
+                    token = token,
+                    errors = null
+                });
             }
         }
 
@@ -118,10 +169,10 @@ namespace Backend.Controllers
         /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("Register")]
-        public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+        public async Task<ActionResult<ApiResponseDto>> Register([FromBody] RegisterDto registerDto)
         {
             if (!ModelState.IsValid) 
-            {
+            {                
                 return BadRequest(ModelState);
             }
 
@@ -135,7 +186,19 @@ namespace Backend.Controllers
 
             if (!result.Succeeded) 
             {
-                return BadRequest();
+                var errorsAuth = result.Errors
+                    .GroupBy(e => e.Code)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.Select(e => e.Description).ToList()
+                    );
+
+                return BadRequest(new ApiResponseDto
+                {
+                    status = 400,
+                    title = "Hubo un problema en la solicitud",
+                    errors = errorsAuth
+                });
             }
 
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -152,7 +215,12 @@ namespace Backend.Controllers
 
             await _userManager.AddToRoleAsync(user, "User");
 
-            return Ok();
+            return Ok(new ApiResponseDto
+            {
+                title = "Hemos enviado un link de confirmacion a su correo",
+                status = 201,
+                errors = null
+            });
         }
 
         /// <summary>
@@ -161,47 +229,73 @@ namespace Backend.Controllers
         /// <param name="userId"></param>
         /// <param name="token"></param>
         /// <returns></returns>
+        [AllowAnonymous]
         [HttpGet("Confirm-email")]
-        public async Task<IActionResult> ConfirmEmail(string userId, string token)
+        public async Task<ActionResult<ApiResponseDto>> ConfirmEmail([FromQuery] string userId, string token)
         {
             if (userId == null || token == null)
             {
-                return BadRequest("Invalid confirmation request.");
+                return BadRequest(new ApiResponseDto
+                    {
+                        title = "Token o usuario invalido",
+                        status = 404,
+                        errors = null
+                    });
             }
 
             var user = await _userManager.FindByIdAsync(userId);
 
             if (user == null)
             {
-                return BadRequest("Usuario no encontrado");
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
             }
 
             var result = await _userManager.ConfirmEmailAsync(user, token);
 
             if(!result.Succeeded)
             {
-                return BadRequest("Error al confirmar");                
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Hubo un problema en la solicitud",
+                    status = 400,
+                    errors = null
+                });
             }
 
-            return Ok("Email confirmado"); 
+            return Ok(new ApiResponseDto
+            {
+                title = "Email confirmado",
+                status = 200,
+                errors = null
+            }); 
         }
 
         /// <summary>
         /// Envio de email con un token para la recuperacion de contraseña
         /// </summary>
-        /// <param name="Email"></param>
+        /// <param name="resetPasswordDto"></param>
         /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword(string Email)
+        public async Task<ActionResult<ApiResponseDto>> ForgotPassword([FromBody] ResetPasswordDto resetPasswordDto)
         {
             try
             {
-                var user = await _userManager.FindByEmailAsync(Email);
+                var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email!);
 
                 if (user == null)
                 {
-                    return BadRequest("El usuario no se encuentra");
+                    return NotFound(new ApiResponseDto
+                    {
+                        title = "Usuario no encontrado",
+                        status = 404,
+                        errors = null
+                    });
                 }
 
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -217,12 +311,24 @@ namespace Backend.Controllers
 
                 _mailService.SendHTMLMail(htmlMailDto, "resetPassword");
 
-                return Ok("Hemos enviado un email con un link para proceder con el cambio de contraseña");
+                return Ok(new ApiResponseDto
+                {
+                    title = "Hemos enviado un email con un link para proceder con el cambio de contraseña",
+                    status = 200,
+                    errors = null
+                });
             }
             catch (Exception err)
             {
-                Console.WriteLine(err);
-                return BadRequest("Ha ocurrido un error con el proveedor del servicio de correo");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Ha ocurrido un error con el proveedor del servicio de correo",
+                    status = 500,
+                    errors = new Dictionary<string, List<string>>
+                    {
+                        { "Categoria", new List<string> { err.Message } }
+                    }
+                });
             }
         }
 
@@ -233,23 +339,38 @@ namespace Backend.Controllers
         /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword(ResetPasswordDto resetPasswordDto)
+        public async Task<ActionResult<ApiResponseDto>> ResetPassword(ResetPasswordDto resetPasswordDto)
         {
             var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email!);
 
             if (user == null)
             {
-                return BadRequest("El usuario no se encuentra");
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
             }
 
             var result = await _userManager.ResetPasswordAsync(user, resetPasswordDto.Token!, resetPasswordDto.NewPassword!);
 
             if(!result.Succeeded)
             {
-                return BadRequest("Error al cambiar el password");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Error al cambiar al contraseña",
+                    status = 500,
+                    errors = null
+                });
             }
 
-            return Ok("El password ha sido cambiado");
+            return Ok(new ApiResponseDto
+            {
+                title = "La contraseña ha sido cambiada",
+                status = 200,
+                errors = null
+            });
         }
 
         /// <summary>
@@ -257,27 +378,42 @@ namespace Backend.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("profile")]
-        public async Task<IActionResult> ProfileUser()
+        public async Task<ActionResult<ApiResponseDto>> ProfileUser()
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (currentUserId == null)
             {
-                return BadRequest("Usuario no autenticado");
+                return Unauthorized(new ApiResponseDto
+                {
+                    title = "Usuario no autenticado",
+                    status = 401,
+                    errors = null
+                });
             }
 
             var user = await _userManager.FindByNameAsync(currentUserId!);
 
             if (user == null)
             {
-                return BadRequest("Usuario no encontrado");
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
             }
 
             var usuario = await _usuarioDAO.GetUserId(user.Id);                      
 
             if (usuario == null || usuario.AuthenticationId != user.Id)
             {
-                return BadRequest("Información del usuario no encontrada o inconsistente");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Registre los siguientes datos para ver su información",
+                    status = 400,
+                    errors = null
+                });
             }
 
             return Ok(new UserDetailDto
@@ -306,24 +442,107 @@ namespace Backend.Controllers
         /// <param name="usuarioDto"></param>
         /// <returns></returns>
         [HttpPost("usuario")]
-        public async Task<IActionResult> RegisterDataUser([FromBody] UsuarioDto usuarioDto)
+        public async Task<ActionResult<ApiResponseDto>> RegisterDataUser([FromBody] UsuarioDto usuarioDto)
         {
+            var result = await _validator.ValidateAsync(usuarioDto);
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByNameAsync(currentUserId!);
 
-            if (!ModelState.IsValid)
+            if (!result.IsValid)
             {
-                return BadRequest(ModelState);
-            }            
+                var modelState = new ModelStateDictionary();
+                foreach (var error in result.Errors)
+                {
+                    modelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            bool exists = _context.Usuarios.Any(u => u.AuthenticationId == user!.Id);
+
+            if (exists) 
+            {
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Los datos ya han sido registrados",
+                    status = 400,
+                    errors = null
+                });
+            }
 
             var data = await _usuarioDAO.AgregarAsync(usuarioDto, user!);
 
             if (!data)
             {
-                return BadRequest();
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Hubo un problema al guardar los datos",
+                    status = 400,
+                    errors = null
+                });
             }
             
-            return Ok("Datos personales guardados");
+            return Ok(new ApiResponseDto
+            {
+                title = "Datos personales guardados",
+                status = 201,
+                errors = null
+            });
+        }
+
+        /// <summary>
+        /// Modificar los datos personales del usuario
+        /// </summary>
+        /// <param name="usuarioDto"></param>
+        /// <returns></returns>
+        [HttpPut("usuario")]
+        public async Task<ActionResult<ApiResponseDto>> ModificarUsuario([FromBody] UsuarioDto usuarioDto)
+        {
+            var result = await _validator.ValidateAsync(usuarioDto);
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var auth = await _userManager.FindByNameAsync(currentUserId!);
+
+            if (!result.IsValid)
+            {
+                var modelState = new ModelStateDictionary();
+                foreach (var error in result.Errors)
+                {
+                    modelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            var user = await _usuarioDAO.ObtenerPorIdAsync(id: usuarioDto.Id!);
+            if (user is null)
+            {
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
+            }
+
+            var data = await _usuarioDAO.ModificarAsync(usuarioDto.Id!, usuarioDto, auth!);
+
+            if (!data)
+            {
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Error al actualizar los datos",
+                    status = 400,
+                    errors = null
+                });
+            }
+
+            return Ok(new ApiResponseDto
+            {
+                title = "Datos personales actualizados",
+                status = 200,
+                errors = null
+            });
         }
 
         /// <summary>
@@ -333,19 +552,19 @@ namespace Backend.Controllers
         /// <param name="autenticationDto"></param>
         /// <returns></returns>
         [HttpPut("add-phonenumber/{id}")]
-        public async Task<IActionResult> RegisterPhone([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
+        public async Task<ActionResult<ApiResponseDto>> RegisterPhone([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByNameAsync(currentUserId!);
 
             if (user == null)
             {
-                return Unauthorized("Usuario no encontrado.");
-            }
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
             }
 
             var otp = await _otpService.GenerateAndSendOTP(autenticationDto.PhoneNumber!);
@@ -356,7 +575,12 @@ namespace Backend.Controllers
 
             if (!data.Succeeded)
             {
-                return BadRequest("Error al actualizar el número telefónico");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Hubo un problema en la solicitud",
+                    status = 404,
+                    errors = null
+                });
             }            
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
@@ -371,7 +595,12 @@ namespace Backend.Controllers
 
             _mailService.SendHTMLMail(htmlMailDto, "otpNumber");
 
-            return Ok("OTP enviado.");
+            return Ok(new ApiResponseDto
+            {
+                title = "OTP de validación enviado al correo",
+                status = 200,
+                errors = null
+            });
         }
 
         /// <summary>
@@ -381,19 +610,29 @@ namespace Backend.Controllers
         /// <param name="autenticationDto"></param>
         /// <returns></returns>
         [HttpPut("number-verify/{id}")]
-        public async Task<IActionResult> VerifyOTP([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
+        public async Task<ActionResult<ApiResponseDto>> VerifyOTP([FromRoute] string id, [FromBody] AutenticationDto autenticationDto)
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByNameAsync(currentUserId!);
 
             if (user == null)
             {
-                return Unauthorized("Usuario no encontrado.");
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
             }
 
             if(user.OTPSecurity != autenticationDto.Otp || user.PhoneNumber != autenticationDto.PhoneNumber)
             {
-                return BadRequest("OTP inválido.");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "OTP inválido",
+                    status = 400,
+                    errors = null
+                });
             }
                         
             user.PhoneNumberConfirmed = true;
@@ -401,10 +640,20 @@ namespace Backend.Controllers
 
             if (!updateResult.Succeeded)
             {
-                return BadRequest("Error al actualizar el estado de verificación del número telefónico.");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Error al actualizar el estado de verificación del número telefónico",
+                    status = 400,
+                    errors = null
+                });
             }
 
-            return Ok("OTP verificado con éxito.");            
+            return Ok(new ApiResponseDto
+            {
+                title = "OTP verificado con éxito",
+                status = 200,
+                errors = null
+            });            
         }
 
         /// <summary>
@@ -414,23 +663,38 @@ namespace Backend.Controllers
         /// <param name="changePasswordDto"></param>
         /// <returns></returns>
         [HttpPut("change-password/{id}")]
-        public async Task<IActionResult> ChangePassword([FromRoute] string id, [FromBody] ChangePasswordDto changePasswordDto)
+        public async Task<ActionResult<ApiResponseDto>> ChangePassword([FromRoute] string id, [FromBody] ChangePasswordDto changePasswordDto)
         {
             var user = await _userManager.FindByIdAsync(id);
 
             if (user is null)
             {
-                return BadRequest("Usuario no encontrado");
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
             }
 
             var result = await _userManager.ChangePasswordAsync(user, changePasswordDto.CurrentPassword!, changePasswordDto.NewPassword!);
 
             if (!result.Succeeded)
             {
-                return BadRequest("Error con el cambio de password");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Error con el cambio de password",
+                    status = 400,
+                    errors = null
+                });
             }
 
-            return Ok("La contraseña ha sido cambiada");
+            return Ok(new ApiResponseDto
+            {
+                title = "La contraseña ha sido cambiada",
+                status = 200,
+                errors = null
+            });
         }
 
         /// <summary>
@@ -438,7 +702,7 @@ namespace Backend.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPut("deactived")]
-        public async Task<IActionResult> DeactivedUser()
+        public async Task<ActionResult<ApiResponseDto>> DeactivedUser()
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var user = await _userManager.FindByNameAsync(currentUserId!);
@@ -446,19 +710,24 @@ namespace Backend.Controllers
 
             await _userManager.UpdateAsync(user);
 
-            return Ok("Su cuenta ha sido inhabilitada");
+            return Ok(new ApiResponseDto
+            {
+                title = "Su cuenta ha sido inhabilitada",
+                status = 200,
+                errors = null
+            });
         }
 
         /// <summary>
         /// Enviar email para reactivacion de la cuenta
         /// </summary>
-        /// <param name="Email"></param>
+        /// <param name="resetPasswordDto"></param>
         /// <returns></returns>
         [AllowAnonymous]
         [HttpPost("active-email")]
-        public async Task<IActionResult> ActiveUser(string Email)
+        public async Task<IActionResult> ActiveUser([FromBody] ResetPasswordDto resetPasswordDto)
         {
-            var user = await _userManager.FindByEmailAsync(Email!);
+            var user = await _userManager.FindByEmailAsync(resetPasswordDto.Email!);
 
             if(user is null)
             {
@@ -484,65 +753,48 @@ namespace Backend.Controllers
         /// <summary>
         /// Reactivacion de la cuenta meditante token y email
         /// </summary>
-        /// <param name="Email"></param>
+        /// <param name="email"></param>
         /// <param name="token"></param>
         /// <returns></returns>
         [AllowAnonymous]
         [HttpPut("reactive-account")]
-        public async Task<IActionResult> ReactivedAccount(string Email, string token)
+        public async Task<ActionResult<ApiResponseDto>> ReactivedAccount([FromQuery] string email, string token)
         {
-            var user = await _userManager.FindByEmailAsync(Email!);
+            var user = await _userManager.FindByEmailAsync(email!);
 
             if(user is null)
             {
-                return BadRequest("Usuario no encontrado");
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Usuario no encontrado",
+                    status = 404,
+                    errors = null
+                });
             }
 
             var result = await _userManager.VerifyUserTokenAsync(user, TokenOptions.DefaultProvider, "ActiveUser", token);
 
             if(!result)
             {
-                return BadRequest("Error con el token de validacion");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Error con el token de validacion",
+                    status = 400,
+                    errors = null
+                });
             }
 
             user.LockoutEnabled = true;
             await _userManager.UpdateAsync(user);
 
-            return Ok("La cuenta ha sido activada");
+            return Ok(new ApiResponseDto
+            {
+                title = "La cuenta ha sido activada",
+                status = 200,
+                errors = null
+            });
         }
-
-        /// <summary>
-        /// Modificar los datos personales del usuario
-        /// </summary>
-        /// <param name="usuarioDto"></param>
-        /// <returns></returns>
-        [HttpPut("usuario")]
-        public async Task<IActionResult> ModificarUsuario([FromBody] UsuarioDto usuarioDto)
-        {
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var auth = await _userManager.FindByNameAsync(currentUserId!);
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            var user = await _usuarioDAO.ObtenerPorIdAsync(id: usuarioDto.Id!);
-            if (user is null)
-            {
-                return BadRequest("Usuario no encontrado");
-            }
-
-            var result = await _usuarioDAO.ModificarAsync(usuarioDto.Id!, usuarioDto, auth!);
-
-            if (!result)
-            {
-                return BadRequest("Error al actualizar los datos");
-            }
-
-            return Ok("Datos personales actualizados");
-        }
-
+                
         private string GenerateJwtToken(Authentication user)
         {
             var roles = _userManager.GetRolesAsync(user).Result;

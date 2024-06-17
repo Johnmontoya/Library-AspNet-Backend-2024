@@ -2,14 +2,18 @@
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using System;
+using static Org.BouncyCastle.Crypto.Engines.SM2Engine;
 
 namespace Backend.Controllers
 {
     /// <summary>
     /// Servicios para buscar, guardar, modificar o borrar las categorias
-    /// </summary>
+    /// </summary>    
     [Authorize(Roles = "User")]
     [Route("api/[controller]")]
     [ApiController]
@@ -17,15 +21,18 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _context;
         private CategoriaDAO _categoriaDAO;
+        private IValidator<CategoriaDto> _validator;
 
         /// <summary>
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
-        public CategoriaController(AppDbContext context)
+        /// <param name="validator"></param>
+        public CategoriaController(AppDbContext context, IValidator<CategoriaDto> validator)
         {
             _context = context;
             _categoriaDAO = new CategoriaDAO(_context);
+            _validator = validator;
         }
 
         /// <summary>
@@ -49,8 +56,23 @@ namespace Backend.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Categoria>> GetId([FromRoute] string id)
         {
-            var categoria = await _categoriaDAO.ObtenerPorIdAsync(id);
-            return Ok(categoria);
+            try
+            {
+                var categoria = await _categoriaDAO.ObtenerPorIdAsync(id);
+                return Ok(categoria);
+            }
+            catch(KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponseDto
+                {
+                    title = "Categoría no encontrada",
+                    status = 404,
+                    errors = new Dictionary<string, List<string>>
+            {
+                { "Categoria", new List<string> { ex.Message } }
+            }
+                });
+            }
         }
 
         /// <summary>
@@ -59,21 +81,39 @@ namespace Backend.Controllers
         /// <param name="categoriaDto"></param>
         /// <returns></returns>
         [HttpPost]
-        public async Task<ActionResult<Categoria>> Post([FromBody] CategoriaDto categoriaDto)
+        public async Task<ActionResult<ApiResponseDto>> Post([FromBody] CategoriaDto categoriaDto)
         {
-            if (!ModelState.IsValid)
+            var result = await _validator.ValidateAsync(categoriaDto);
+
+            if (!result.IsValid) 
             {
-                return BadRequest(ModelState);
+                var modelState = new ModelStateDictionary();
+                foreach (var error in result.Errors)
+                {
+                    modelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                }
+
+                return ValidationProblem(modelState);
             }
 
             var categoria = await _categoriaDAO.AgregarAsync(categoriaDto);
 
             if (!categoria)
             {
-                return BadRequest("Error al guardar la categoria");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Hubo un problema al actualizar la categoria",
+                    status = 400,
+                    errors = null
+                });
             }
 
-            return Ok("Categoria guardada");
+            return Ok(new ApiResponseDto
+            {
+                title = "Categoria Guardada",
+                errors = null,
+                status = 201
+            });
         }
 
         /// <summary>
@@ -87,24 +127,37 @@ namespace Backend.Controllers
         {
             var data = await _categoriaDAO.ObtenerPorIdAsync(id);
 
-            if(data == null)
+            var result = await _validator.ValidateAsync(categoriaDto);
+
+            if (!result.IsValid)
             {
-                return BadRequest("Categoria no encontrada");
+                var modelState = new ModelStateDictionary();
+                foreach (var error in result.Errors)
+                {
+                    modelState.AddModelError(error.PropertyName, error.ErrorMessage);
+                }
+
+                return ValidationProblem(modelState);
             }
 
-            if (!ModelState.IsValid)
+            var categoria = await _categoriaDAO.ModificarAsync(id, categoriaDto);
+
+            if (!categoria)
             {
-                return BadRequest(ModelState);
+                return BadRequest(new ApiResponseDto
+                {
+                    title = "Hubo un problema al actualizar la categoria",
+                    status = 400,
+                    errors = null
+                });
             }
 
-            var result = await _categoriaDAO.ModificarAsync(id, categoriaDto);
-
-            if (!result)
+            return Ok(new ApiResponseDto
             {
-                return BadRequest("Error al actualizar la categoria");
-            }
-
-            return Ok("Categoria Actualizada");
+                title = "Categoria Actualizada",
+                errors = null,
+                status = 200
+            });
         }
 
 
@@ -114,17 +167,26 @@ namespace Backend.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpDelete("{id}")]
-        public async Task<ActionResult<string>> Delete([FromRoute] string id)
+        public async Task<ActionResult<ApiResponseDto>> Delete([FromRoute] string id)
         {
             var result = await _categoriaDAO.BorrarAsync(id);
 
             if (!result)
             {
-                return BadRequest("Error al eliminar la categoria");
+                return NotFound(new ApiResponseDto
+                {
+                    title = _categoriaDAO.customError!.title!,
+                    status = 404,
+                    errors = _categoriaDAO.customError!.errors!
+                });
             }
 
-            return Ok("Categoria eliminada");
+            return Ok(new ApiResponseDto
+            {
+                title = "Categoria eliminada",
+                errors = null,
+                status = 200
+            });
         }
-
     }
 }

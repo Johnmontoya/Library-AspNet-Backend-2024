@@ -2,6 +2,7 @@
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.DAO
 {
@@ -12,6 +13,11 @@ namespace Backend.DAO
     {
         private readonly AppDbContext _context;
         private AccessDAO<Categoria> categoriaDAO;
+
+        /// <summary>
+        /// Mensaje de error personalizado
+        /// </summary>
+        public CustomError? customError;
 
         /// <summary>
         /// Constructor de la clase
@@ -38,9 +44,10 @@ namespace Backend.DAO
         /// <param name="id">Id de la categoría</param>
         /// <returns></returns>
         public async Task<Categoria> ObtenerPorIdAsync(string id)
-        {
-            var result = _context.Categorias.SingleOrDefault(c => c.Id == id);
-            return result!;
+        {            
+            var result = _context.Categorias.FirstOrDefaultAsync(c => c.Id == id);            
+            return result.Result!;
+            
         }
 
         /// <summary>
@@ -64,6 +71,7 @@ namespace Backend.DAO
             }
             else
             {
+                customError = categoriaDAO.customError;
                 return false;
             }
         }
@@ -93,6 +101,7 @@ namespace Backend.DAO
             }
             else
             {
+                customError = categoriaDAO.customError;
                 return false;
             }
         }
@@ -112,6 +121,7 @@ namespace Backend.DAO
             }
             else
             {
+                customError = categoriaDAO.customError;
                 return false;
             }
         }
