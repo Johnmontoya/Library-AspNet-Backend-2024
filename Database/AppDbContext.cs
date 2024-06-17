@@ -47,5 +47,10 @@ namespace Backend.Database
         /// </summary>
         public virtual DbSet<Categoria> Categorias { get; set; }
 
+        /// <summary>
+        /// Tabla de autores
+        /// </summary>
+        public virtual DbSet<Autor> Autors { get; set; }
+
     }
 }

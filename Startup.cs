@@ -117,8 +117,10 @@ namespace Backend
             services.AddSingleton<System.TimeProvider>(System.TimeProvider.System);
             services.AddMvc();
 
+            //Validaciones de clase
             services.AddValidatorsFromAssemblyContaining<CategoriaValidator>();
             services.AddValidatorsFromAssemblyContaining<UsuarioValidator>();
+            services.AddValidatorsFromAssemblyContaining<AutorValidator>();
 
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(swagger =>
