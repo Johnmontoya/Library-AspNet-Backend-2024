@@ -34,7 +34,7 @@ namespace Backend.Controllers
         }
 
         /// <summary>
-        /// Obtiene todos los libros almancenadas
+        /// Obtiene todos los libros almancenados
         /// </summary>
         /// <returns></returns>
         [AllowAnonymous]

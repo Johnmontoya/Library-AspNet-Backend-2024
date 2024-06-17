@@ -57,5 +57,10 @@ namespace Backend.Database
         /// </summary>
         public virtual DbSet<Libro> Libros { get; set; }
 
+        /// <summary>
+        /// Tabla de prestamos
+        /// </summary>
+        public virtual DbSet<Prestamo> Prestamos { get; set; }
+
     }
 }
