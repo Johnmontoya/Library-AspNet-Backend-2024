@@ -2,6 +2,7 @@
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,16 +16,19 @@ namespace Backend.DAO
         private readonly AppDbContext _context;
         private AccessDAO<Usuario> _usuarioDAO;
         private readonly UserManager<Authentication> _userManager;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
         /// <param name="userManager"></param>
-        public UsuarioDAO(AppDbContext context, UserManager<Authentication> userManager)
+        /// <param name="locService"></param>
+        public UsuarioDAO(AppDbContext context, UserManager<Authentication> userManager, LocService locService)
         {
             _context = context;
-            _usuarioDAO = new AccessDAO<Usuario>(_context);
+            _locService = locService;
+            _usuarioDAO = new AccessDAO<Usuario>(_context, _locService);
             _userManager = userManager;
         }
 

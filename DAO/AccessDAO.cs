@@ -1,5 +1,7 @@
 ﻿using Backend.Core;
+using Backend.Core.Errors;
 using Backend.Database;
+using Backend.Resources;
 using Microsoft.AspNetCore.Http.HttpResults;
 using System.Data.Entity;
 
@@ -12,6 +14,7 @@ namespace Backend.DAO
     public class AccessDAO<TEntity> : IAccessDAO<TEntity> where TEntity : class
     {
         private readonly AppDbContext _context;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Mensaje de error personalizado
@@ -22,9 +25,11 @@ namespace Backend.DAO
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
-        public AccessDAO(AppDbContext context)
+        /// <param name="localizer"></param>
+        public AccessDAO(AppDbContext context, LocService localizer)
         {
             _context = context;
+            _locService = localizer;
         }
 
         CustomError IAccessDAO<TEntity>.customError { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
@@ -65,7 +70,7 @@ namespace Backend.DAO
             {
                 customError = new CustomError("No encontrado", 404, new Dictionary<string, List<string>>
                 {
-                    { "NotFound", new List<string>{ "El registro que busca no existe" } }
+                    { "NotFound", new List<string>{ String.Format(_locService.GetLocalizedString("NotFound"))} }
                 });
                 return false;
             }
@@ -106,7 +111,7 @@ namespace Backend.DAO
             {
                 customError = new CustomError("No encontrado", 404, new Dictionary<string, List<string>>
                 {
-                    { "NotFound", new List<string>{ "El registro que busca no existe" } }
+                    { "NotFound", new List<string>{ String.Format(_locService.GetLocalizedString("NotFound")) } }
                 });
                 return false;
             }

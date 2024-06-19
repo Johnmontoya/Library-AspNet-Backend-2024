@@ -15,6 +15,12 @@ using System.Text.Json;
 using FluentValidation;
 using Backend.Rules;
 using Backend.Validators;
+using Backend.Resources;
+using System.Globalization;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.Extensions.Options;
+using Backend.Core.Errors;
+using Backend.Core.OTP;
 
 namespace Backend
 {
@@ -114,8 +120,39 @@ namespace Backend
             });
 
             services.AddAuthorization();
-            services.AddSingleton<System.TimeProvider>(System.TimeProvider.System);
-            services.AddMvc();
+
+            //Cambio de idioma
+            services.AddSingleton<LocService>();
+            services.AddLocalization(options => options.ResourcesPath = "Resources");
+
+            services.AddMvc()
+                .AddDataAnnotationsLocalization(options => 
+                {
+                    options.DataAnnotationLocalizerProvider = (type, factory) =>
+                    {
+                        var assemblyName = new AssemblyName(typeof(SharedResource).GetTypeInfo().Assembly.FullName!);
+                        return factory.Create("SharedResource", assemblyName.Name!);
+                    };
+                });            
+
+            services.Configure<RequestLocalizationOptions>(
+                options =>
+                {
+                    var supportedCultures = new[]
+                    {
+                        new CultureInfo("es-ES"),
+                        new CultureInfo("en-US")
+                    };
+
+                    options.DefaultRequestCulture = new RequestCulture(culture: "es-ES", uiCulture: "es-ES");
+                    options.SupportedCultures = supportedCultures;
+                    options.SupportedUICultures = supportedCultures;
+
+                    options.AddInitialRequestCultureProvider(new CustomRequestCultureProvider(async context =>
+                    {
+                        return await Task.FromResult(new ProviderCultureResult("es"));
+                    }));
+                });
 
             //Validaciones de clase
             services.AddValidatorsFromAssemblyContaining<CategoriaValidator>();
@@ -179,10 +216,17 @@ namespace Backend
         /// <param name="env"></param>
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            if(env.IsDevelopment())
+            var locOptions = app.ApplicationServices.GetService<IOptions<RequestLocalizationOptions>>();
+            app.UseRequestLocalization(locOptions!.Value);
+
+            if (env.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
+            } else
+            {
+                app.UseExceptionHandler("/Error");
+                app.UseHsts();
             }
 
             var urlAceptadas = Configuration.GetSection("AllowedHosts").Value!.Split(",");

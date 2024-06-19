@@ -2,6 +2,7 @@
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -21,16 +22,20 @@ namespace Backend.Controllers
         private readonly AppDbContext _context;
         private PrestamoDAO _prestamoDAO;
         private readonly UserManager<Authentication> _userManager;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
-        public PrestamoController(AppDbContext context, UserManager<Authentication> userManager)
+        /// <param name="userManager"></param>
+        /// <param name="locService"></param>
+        public PrestamoController(AppDbContext context, UserManager<Authentication> userManager, LocService locService)
         {
             _context = context;
-            _prestamoDAO = new PrestamoDAO(_context);
+            _locService = locService;            
             _userManager = userManager;
+            _prestamoDAO = new PrestamoDAO(_context, _locService);
         }
 
         /// <summary>
@@ -62,7 +67,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Prestamo no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Prestamo"),
                     status = 404,
                     errors = new Dictionary<string, List<string>>
             {
@@ -86,7 +91,7 @@ namespace Backend.Controllers
             {
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = "Usuario no autenticado",
+                    title = String.Format(_locService.GetLocalizedString("Unauthorized")),
                     status = 401,
                     errors = null
                 });
@@ -98,7 +103,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Usuario"),
                     status = 404,
                     errors = null
                 });
@@ -110,7 +115,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Libro no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Libro"),
                     status = 404,
                     errors = null
                 });
@@ -122,7 +127,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al guardar el prestamo",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -130,7 +135,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Prestamo Guardado",
+                title = String.Format(_locService.GetLocalizedString("Success"), "Prestamo"),
                 errors = null,
                 status = 201
 
@@ -152,7 +157,7 @@ namespace Backend.Controllers
             {
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = "Usuario no autenticado",
+                    title = String.Format(_locService.GetLocalizedString("Unauthorized")),
                     status = 401,
                     errors = null
                 });
@@ -164,7 +169,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Usuario"),
                     status = 404,
                     errors = null
                 });
@@ -176,7 +181,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Libro no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Libro"),
                     status = 404,
                     errors = null
                 });
@@ -188,7 +193,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al actualizar el prestamo",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -196,7 +201,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Prestamo Actualizado",
+                title = String.Format(_locService.GetLocalizedString("Updated"), "Prestamo"),
                 errors = null,
                 status = 201
 
@@ -216,7 +221,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Prestamo no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Prestamo"),
                     status = 404,
                     errors = null
                 });
@@ -224,7 +229,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Prestamo Eliminado",
+                title = String.Format(_locService.GetLocalizedString("Deleted"), "Prestamo"),
                 errors = null,
                 status = 200
             });

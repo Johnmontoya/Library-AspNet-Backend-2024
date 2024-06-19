@@ -1,7 +1,9 @@
 ﻿using Backend.Core;
+using Backend.Core.Errors;
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.DAO
@@ -13,6 +15,7 @@ namespace Backend.DAO
     {
         private readonly AppDbContext _context;
         private AccessDAO<Autor> autorDAO;
+        private LocService _locService;
 
         /// <summary>
         /// Mensaje de error personalizado
@@ -23,10 +26,12 @@ namespace Backend.DAO
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
-        public AutorDAO(AppDbContext context)
+        /// <param name="locService"></param>
+        public AutorDAO(AppDbContext context, LocService locService)
         {
             _context = context;
-            autorDAO = new AccessDAO<Autor>(_context);
+            _locService = locService;
+            autorDAO = new AccessDAO<Autor>(_context, _locService);
         }
 
         /// <summary>

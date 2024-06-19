@@ -1,5 +1,6 @@
 ﻿using Backend.Database;
 using Backend.Dtos;
+using Backend.Resources;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,19 +12,22 @@ namespace Backend.Validators
     public class LibroValidator : AbstractValidator<LibroDto>
     {
         private readonly AppDbContext _context;
+        private readonly LocService _localizer;
 
         /// <summary>
         /// Constructor y validaciones de la clase libro
         /// </summary>
         /// <param name="context"></param>
-        public LibroValidator(AppDbContext context)
+        /// <param name="localizer"></param>
+        public LibroValidator(AppDbContext context, LocService localizer)
         {
             _context = context;
+            _localizer = localizer;
 
             RuleFor(u => u.Nombre)
-                .NotNull().WithMessage("El campo nombre no puede estar vacio")
-                .NotEmpty().WithMessage("El campo nombre no puede estar vacio")
-                .MustAsync(BeUniqueNombre!).WithMessage("Un libro con ese nombre ya existe");
+                .NotNull().WithMessage(String.Format(_localizer.GetLocalizedString("NotNull"), "nombre"))
+                .NotEmpty().WithMessage(String.Format(_localizer.GetLocalizedString("NotEmpty"), "nombre"))
+                .MustAsync(BeUniqueNombre!).WithMessage(String.Format(_localizer.GetLocalizedString("Duplicate"), "nombre"));
         }
 
         private async Task<bool> BeUniqueNombre(LibroDto libroDto, string nombre, CancellationToken cancellationToken)

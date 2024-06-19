@@ -1,12 +1,28 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Backend.Resources;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Localization;
+using System.Reflection;
 
-namespace Backend.Core
+namespace Backend.Core.Errors
 {
     /// <summary>
     /// Permite validar los errores de validacion de la clase Identity
     /// </summary>
     public class CustomValidationIdentityError : IdentityErrorDescriber
     {
+        private readonly IStringLocalizer _localizedizer;
+
+        /// <summary>
+        /// Constructor de la clase
+        /// </summary>
+        /// <param name="factory"></param>
+        public CustomValidationIdentityError(IStringLocalizerFactory factory)
+        {
+            var type = typeof(SharedResource);
+            var assemblyName = new AssemblyName(type.GetTypeInfo().Assembly.FullName!);
+            _localizedizer = factory.Create("SharedResource", assemblyName.Name!);
+        }
+
         /// <summary>
         /// El email de usuario ya existe
         /// </summary>
@@ -17,7 +33,7 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(DuplicateEmail),
-                Description = "Ya existe un usuasrio con ese email",
+                Description = _localizedizer["DuplicateEmail", email],
             };
         }
 
@@ -31,7 +47,7 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(InvalidEmail),
-                Description = "El formato del email no es valido",
+                Description = _localizedizer["InvalidEmail", email!],
             };
         }
 
@@ -45,7 +61,7 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(DuplicateUserName),
-                Description = "Ya existe un usuario con ese nombre"
+                Description = _localizedizer["DuplicateUserName", userName]
             };
         }
 
@@ -59,7 +75,7 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(InvalidUserName),
-                Description = "El nombre de usuario no puede tener espacios ni carácteres especiales",
+                Description = _localizedizer["InvalidUserName"],
             };
         }
 
@@ -73,9 +89,9 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(PasswordTooShort),
-                Description = "La contraseña es demasiado corta",
+                Description = _localizedizer["PasswordTooShort"],
             };
-        }        
+        }
 
         /// <summary>
         /// Requiere que el password tenga tanto letras como números
@@ -86,7 +102,7 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(PasswordRequiresNonAlphanumeric),
-                Description = "La contraseña debe tener al menos un carácter no alfanumerico"
+                Description = _localizedizer["PasswordRequiresNonAlphanumeric"]
             };
         }
 
@@ -99,7 +115,7 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(PasswordRequiresDigit),
-                Description = "La contraseña debe tener al menos un número"
+                Description = _localizedizer["PasswordRequiresDigit"]
             };
         }
 
@@ -112,7 +128,7 @@ namespace Backend.Core
             return new IdentityError
             {
                 Code = nameof(PasswordRequiresUpper),
-                Description = "La contraseña debe tener al menos una letra mayúscula"
+                Description = _localizedizer["PasswordRequiresUpper"]
             };
         }
     }

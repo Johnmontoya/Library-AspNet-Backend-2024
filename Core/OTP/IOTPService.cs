@@ -1,4 +1,4 @@
-﻿namespace Backend.Core
+﻿namespace Backend.Core.OTP
 {
     /// <summary>
     /// Interfaz para implementar el OTP

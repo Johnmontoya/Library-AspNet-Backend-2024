@@ -1,4 +1,4 @@
-﻿namespace Backend.Core
+﻿namespace Backend.Core.Errors
 {
     /// <summary>
     /// Mensjaes de error 

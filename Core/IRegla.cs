@@ -1,4 +1,6 @@
-﻿namespace Backend.Core
+﻿using Backend.Core.Errors;
+
+namespace Backend.Core
 {
     /// <summary>
     /// Permite agregar reglas

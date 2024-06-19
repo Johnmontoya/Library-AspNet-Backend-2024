@@ -1,8 +1,7 @@
-﻿
-using Backend.Models;
+﻿using Backend.Models;
 using Microsoft.AspNetCore.Identity;
 
-namespace Backend.Core
+namespace Backend.Core.OTP
 {
     /// <summary>
     /// Clase para la generacion de codigo OTP
@@ -11,7 +10,7 @@ namespace Backend.Core
     {
         private static readonly Random _random = new Random();
         private readonly Dictionary<string, string> _otpStore = new Dictionary<string, string>();
-        
+
         /// <summary>
         /// Genera el codigo OTP
         /// </summary>

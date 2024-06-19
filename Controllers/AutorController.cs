@@ -2,6 +2,7 @@
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,16 +21,19 @@ namespace Backend.Controllers
         private readonly AppDbContext _context;
         private AutorDAO _autorDAO;
         private IValidator<AutorDto> _validator;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
         /// <param name="validator"></param>
-        public AutorController(AppDbContext context, IValidator<AutorDto> validator)
+        /// <param name="locService"></param>
+        public AutorController(AppDbContext context, IValidator<AutorDto> validator, LocService locService)
         {
             _context = context;
-            _autorDAO = new AutorDAO(_context);
+            _locService = locService;
+            _autorDAO = new AutorDAO(_context, _locService);
             _validator = validator;
         }
 
@@ -63,7 +67,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Autor no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Autor"),
                     status = 404,
                     errors = new Dictionary<string, List<string>>
             {
@@ -78,6 +82,7 @@ namespace Backend.Controllers
         /// </summary>
         /// <param name="autorDto"></param>
         /// <returns></returns>
+        [AllowAnonymous]
         [HttpPost]
         public async Task<ActionResult<ApiResponseDto>> Post([FromBody] AutorDto autorDto)
         {
@@ -100,7 +105,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al guardar el autor",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -108,7 +113,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Autor Guardado",
+                title = String.Format(_locService.GetLocalizedString("Success"), "Autor"),
                 errors = null,
                 status = 201
 
@@ -145,7 +150,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al actualizar el autor",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -153,7 +158,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Autor Actualizado",
+                title = String.Format(_locService.GetLocalizedString("Updated"), "Autor"),
                 errors = null,
                 status = 200
             });
@@ -164,6 +169,7 @@ namespace Backend.Controllers
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
+        [AllowAnonymous]
         [HttpDelete("{id}")]
         public async Task<ActionResult<ApiResponseDto>> Delete([FromRoute] string id)
         {
@@ -181,7 +187,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Autor eliminado",
+                title = String.Format(_locService.GetLocalizedString("Deleted"), "Autor"),
                 errors = null,
                 status = 200
             });

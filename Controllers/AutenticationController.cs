@@ -1,9 +1,11 @@
-﻿using Backend.Core;
+﻿using Backend.Core.Errors;
+using Backend.Core.OTP;
 using Backend.DAO;
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Interfaces;
 using Backend.Models;
+using Backend.Resources;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -34,6 +36,7 @@ namespace Backend.Controllers
         private UsuarioDAO _usuarioDAO;
         private readonly IOTPService _otpService;
         private IValidator<UsuarioDto> _validator;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Mensaje de error personalizado
@@ -51,6 +54,7 @@ namespace Backend.Controllers
         /// <param name="mailService"></param>
         /// <param name="otpService"></param>
         /// <param name="validator"></param>
+        /// <param name="locService"></param>
         public AutenticationController(
             AppDbContext context, 
             UserManager<Authentication> userManager, 
@@ -59,7 +63,8 @@ namespace Backend.Controllers
             IConfiguration configuration, 
             IMailService mailService, 
             IOTPService otpService,
-            IValidator<UsuarioDto> validator)
+            IValidator<UsuarioDto> validator,
+            LocService locService)
         {
             _context = context;
             _userManager = userManager;
@@ -67,9 +72,10 @@ namespace Backend.Controllers
             _signInManager = signInManager;
             _configuration = configuration;
             _mailService = mailService;
-            _usuarioDAO = new UsuarioDAO(_context, _userManager);
+            _locService = locService;
             _otpService = otpService;
             _validator = validator;
+            _usuarioDAO = new UsuarioDAO(_context, _userManager, _locService);
         }
 
         /// <summary>
@@ -87,7 +93,7 @@ namespace Backend.Controllers
             {
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = "Usuario o password invalido",
+                    title = String.Format(_locService.GetLocalizedString("UserPassInvalid")),
                     status = 401,
                     errors = null
                 });
@@ -97,7 +103,7 @@ namespace Backend.Controllers
             {
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = "El email no ha sido confirmado",
+                    title = String.Format(_locService.GetLocalizedString("EmailNotConfirm"), user.Email),
                     status = 401,
                     errors = null
                 });
@@ -107,7 +113,7 @@ namespace Backend.Controllers
             {
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = "La cuenta se encuentra inhabilitada",
+                    title = String.Format(_locService.GetLocalizedString("AccountDeactivated"), user.Email),
                     status = 401,
                     errors = null
                 });
@@ -119,8 +125,8 @@ namespace Backend.Controllers
             {
                 var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
                 return Unauthorized(new ApiResponseDto
-                {
-                    title = $"El usuario ha sido bloqueado hasta {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}",
+                {                    
+                    title = $"{String.Format(_locService.GetLocalizedString("AccountBlocked"), user.UserName)} {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}",
                     status = 401,
                     errors = null
                 });
@@ -133,7 +139,7 @@ namespace Backend.Controllers
                 var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = $"El usuario ha sido bloqueado hasta {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}",
+                    title = $"{String.Format(_locService.GetLocalizedString("AccountBlocked"), user.UserName)} {lockoutEnd?.ToString("yyyy-MM-dd HH:mm:ss")}",
                     status = 401,
                     errors = null
                 });
@@ -143,7 +149,7 @@ namespace Backend.Controllers
                 await _userManager.AccessFailedAsync(user);
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = "Usuario o password invalido",
+                    title = String.Format(_locService.GetLocalizedString("UserPassInvalid")),
                     status = 401,
                     errors = null
                 });
@@ -154,7 +160,7 @@ namespace Backend.Controllers
                 var token = GenerateJwtToken(user);
                 return Ok(new ApiResponseDto
                 {
-                    title = "Bienvenido",
+                    title = String.Format(_locService.GetLocalizedString("Welcome"), user.UserName),
                     status = 200,
                     token = token,
                     errors = null
@@ -196,7 +202,7 @@ namespace Backend.Controllers
                 return BadRequest(new ApiResponseDto
                 {
                     status = 400,
-                    title = "Hubo un problema en la solicitud",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     errors = errorsAuth
                 });
             }
@@ -217,7 +223,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Hemos enviado un link de confirmacion a su correo",
+                title = String.Format(_locService.GetLocalizedString("LinkSendEmail")),
                 status = 201,
                 errors = null
             });
@@ -237,7 +243,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                     {
-                        title = "Token o usuario invalido",
+                        title = String.Format(_locService.GetLocalizedString("UserTokenInvalid")),
                         status = 404,
                         errors = null
                     });
@@ -249,7 +255,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -261,7 +267,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema en la solicitud",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -269,7 +275,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Email confirmado",
+                title = String.Format(_locService.GetLocalizedString("EmailConfirm")),
                 status = 200,
                 errors = null
             }); 
@@ -292,7 +298,7 @@ namespace Backend.Controllers
                 {
                     return NotFound(new ApiResponseDto
                     {
-                        title = "Usuario no encontrado",
+                        title = String.Format(_locService.GetLocalizedString("NotFound")),
                         status = 404,
                         errors = null
                     });
@@ -313,7 +319,7 @@ namespace Backend.Controllers
 
                 return Ok(new ApiResponseDto
                 {
-                    title = "Hemos enviado un email con un link para proceder con el cambio de contraseña",
+                    title = String.Format(_locService.GetLocalizedString("LinkSendPassword")),
                     status = 200,
                     errors = null
                 });
@@ -322,7 +328,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Ha ocurrido un error con el proveedor del servicio de correo",
+                    title = String.Format(_locService.GetLocalizedString("ErrorServerEmail")),
                     status = 500,
                     errors = new Dictionary<string, List<string>>
                     {
@@ -347,7 +353,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -359,7 +365,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Error al cambiar al contraseña",
+                    title = String.Format(_locService.GetLocalizedString("ErrorPassword")),
                     status = 500,
                     errors = null
                 });
@@ -367,7 +373,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "La contraseña ha sido cambiada",
+                title = String.Format(_locService.GetLocalizedString("PasswordSuccess")),
                 status = 200,
                 errors = null
             });
@@ -386,7 +392,7 @@ namespace Backend.Controllers
             {
                 return Unauthorized(new ApiResponseDto
                 {
-                    title = "Usuario no autenticado",
+                    title = String.Format(_locService.GetLocalizedString("Unauthorized")),
                     status = 401,
                     errors = null
                 });
@@ -398,7 +404,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -410,7 +416,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Registre los siguientes datos para ver su información",
+                    title = String.Format(_locService.GetLocalizedString("ProfileInfo")),
                     status = 400,
                     errors = null
                 });
@@ -465,7 +471,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Los datos ya han sido registrados",
+                    title = String.Format(_locService.GetLocalizedString("ProfileAlready")),
                     status = 400,
                     errors = null
                 });
@@ -477,7 +483,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al guardar los datos",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -485,7 +491,7 @@ namespace Backend.Controllers
             
             return Ok(new ApiResponseDto
             {
-                title = "Datos personales guardados",
+                title = String.Format(_locService.GetLocalizedString("ProfileSaved"), "guardados"),
                 status = 201,
                 errors = null
             });
@@ -519,7 +525,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -531,7 +537,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Error al actualizar los datos",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -539,7 +545,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Datos personales actualizados",
+                title = String.Format(_locService.GetLocalizedString("ProfileSaved"), "actualizados"),
                 status = 200,
                 errors = null
             });
@@ -561,7 +567,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -577,7 +583,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema en la solicitud",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 404,
                     errors = null
                 });
@@ -597,7 +603,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "OTP de validación enviado al correo",
+                title = String.Format(_locService.GetLocalizedString("LinkSendOTP")),
                 status = 200,
                 errors = null
             });
@@ -619,7 +625,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -629,7 +635,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "OTP inválido",
+                    title = String.Format(_locService.GetLocalizedString("OTPInvalid")),
                     status = 400,
                     errors = null
                 });
@@ -642,7 +648,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Error al actualizar el estado de verificación del número telefónico",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -650,7 +656,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "OTP verificado con éxito",
+                title = String.Format(_locService.GetLocalizedString("OTPSuccess")),
                 status = 200,
                 errors = null
             });            
@@ -671,7 +677,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -683,7 +689,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Error con el cambio de password",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -691,7 +697,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "La contraseña ha sido cambiada",
+                title = String.Format(_locService.GetLocalizedString("PasswordSuccess")),
                 status = 200,
                 errors = null
             });
@@ -712,7 +718,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Su cuenta ha sido inhabilitada",
+                title = String.Format(_locService.GetLocalizedString("AccountDeactivated"), user.UserName),
                 status = 200,
                 errors = null
             });
@@ -731,7 +737,12 @@ namespace Backend.Controllers
 
             if(user is null)
             {
-                return BadRequest("Usuario no encontrado");
+                return BadRequest(new ApiResponseDto
+                {
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
+                    status = 400,
+                    errors = null
+                });
             }
 
             var token = await _userManager.GenerateUserTokenAsync(user, TokenOptions.DefaultProvider, "ActiveUser");
@@ -747,7 +758,12 @@ namespace Backend.Controllers
 
             _mailService.SendHTMLMail(htmlMailDto, "activarCuenta");
 
-            return Ok("Hemos enviado un email con un link para reactivar su cuenta");
+            return Ok(new ApiResponseDto
+            {
+                title = String.Format(_locService.GetLocalizedString("LinkSendAccount")),
+                status = 200,
+                errors = null
+            });
         }
 
         /// <summary>
@@ -766,7 +782,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Usuario no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFound")),
                     status = 404,
                     errors = null
                 });
@@ -778,7 +794,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Error con el token de validacion",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -789,7 +805,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "La cuenta ha sido activada",
+                title = String.Format(_locService.GetLocalizedString("AccountActivated"), user.UserName),
                 status = 200,
                 errors = null
             });

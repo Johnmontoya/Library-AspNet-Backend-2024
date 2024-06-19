@@ -1,9 +1,9 @@
 ﻿using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Backend.Rules
 {
@@ -13,26 +13,29 @@ namespace Backend.Rules
     public class CategoriaValidator: AbstractValidator<CategoriaDto>
     {
         private readonly AppDbContext _context;
+        private readonly LocService _localizer;
 
         /// <summary>
         /// Constructor y validaciones de la clase Categoria
         /// </summary>
         /// <param name="context"></param>
-        public CategoriaValidator(AppDbContext context)
+        /// <param name="locService"></param>
+        public CategoriaValidator(AppDbContext context, LocService locService)
         {
             _context = context;
+            _localizer = locService;
 
             RuleFor(c => c.Clave)
-                .NotNull().WithMessage("El campo clave no puede estar vacio")
-                .NotEmpty().WithMessage("El campo clave no puede estar vacio")
-                .LessThan(100).WithMessage("La clave no puede ser mayor que 100")
-                .GreaterThanOrEqualTo(0).WithMessage("La clave no puede ser menor a 0")
-                .MustAsync(BeUniqueClave!).WithMessage("Una categoria con esa clave ya existe");
+                .NotNull().WithMessage(String.Format(_localizer.GetLocalizedString("NotNull"), "clave"))
+                .NotEmpty().WithMessage(String.Format(_localizer.GetLocalizedString("NotEmpty"), "clave"))
+                .LessThan(100).WithMessage(String.Format(_localizer.GetLocalizedString("LessThan"), "clave", "100"))
+                .GreaterThanOrEqualTo(0).WithMessage(String.Format(_localizer.GetLocalizedString("GreaterThan"), "clave", "0"))
+                .MustAsync(BeUniqueClave!).WithMessage(String.Format(_localizer.GetLocalizedString("Duplicate"), "clave"));
 
             RuleFor(c => c.Nombre)
-                .NotNull().WithMessage("El campo nombre no puede estar vacio")
-                .NotEmpty().WithMessage("El campo nombre no puede estar vacio")
-                .MustAsync(BeUniqueNombre!).WithMessage("Una categoria con ese nombre ya existe");
+                .NotNull().WithMessage(String.Format(_localizer.GetLocalizedString("NotNull"), "nombre"))
+                .NotEmpty().WithMessage(String.Format(_localizer.GetLocalizedString("NotEmpty"), "nombre"))
+                .MustAsync(BeUniqueNombre!).WithMessage(String.Format(_localizer.GetLocalizedString("Duplicate"), "nombre"));
                 
         }
         private async Task<bool> BeUniqueClave(CategoriaDto categoriaDto, int clave, CancellationToken cancellationToken)

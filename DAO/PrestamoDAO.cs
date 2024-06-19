@@ -1,7 +1,9 @@
 ﻿using Backend.Core;
+using Backend.Core.Errors;
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OData.Edm;
 
@@ -14,6 +16,7 @@ namespace Backend.DAO
     {
         private readonly AppDbContext _context;
         private AccessDAO<Prestamo> prestamoDAO;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Mensaje de error personalizado
@@ -24,10 +27,12 @@ namespace Backend.DAO
         /// Constructor
         /// </summary>
         /// <param name="context"></param>
-        public PrestamoDAO(AppDbContext context)
+        /// <param name="locService"></param>
+        public PrestamoDAO(AppDbContext context, LocService locService)
         {
             _context = context;
-            prestamoDAO = new AccessDAO<Prestamo>(context);
+            _locService = locService;
+            prestamoDAO = new AccessDAO<Prestamo>(context, _locService);
         }
 
         /// <summary>

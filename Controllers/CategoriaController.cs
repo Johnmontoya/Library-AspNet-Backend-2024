@@ -2,6 +2,7 @@
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,16 +23,19 @@ namespace Backend.Controllers
         private readonly AppDbContext _context;
         private CategoriaDAO _categoriaDAO;
         private IValidator<CategoriaDto> _validator;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
         /// <param name="validator"></param>
-        public CategoriaController(AppDbContext context, IValidator<CategoriaDto> validator)
+        /// <param name="locService"></param>
+        public CategoriaController(AppDbContext context, IValidator<CategoriaDto> validator, LocService locService)
         {
             _context = context;
-            _categoriaDAO = new CategoriaDAO(_context);
+            _locService = locService;
+            _categoriaDAO = new CategoriaDAO(_context, _locService);
             _validator = validator;
         }
 
@@ -65,7 +69,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Categoría no encontrada",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Categoria"),
                     status = 404,
                     errors = new Dictionary<string, List<string>>
             {
@@ -102,7 +106,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al guardar la categoria",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -110,7 +114,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Categoria Guardada",
+                title = String.Format(_locService.GetLocalizedString("Success"), "Categoria"),
                 errors = null,
                 status = 201
             });
@@ -146,7 +150,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al actualizar la categoria",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -154,7 +158,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Categoria Actualizada",
+                title = String.Format(_locService.GetLocalizedString("Updated"), "Categoria"),
                 errors = null,
                 status = 200
             });
@@ -183,7 +187,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Categoria eliminada",
+                title = String.Format(_locService.GetLocalizedString("Deleted"), "Categoria"),
                 errors = null,
                 status = 200
             });

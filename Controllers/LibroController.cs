@@ -2,6 +2,7 @@
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
+using Backend.Resources;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,17 +21,20 @@ namespace Backend.Controllers
         private readonly AppDbContext _context;
         private LibroDAO _libroDAO;
         private IValidator<LibroDto> _validator;
+        private readonly LocService _locService;
 
         /// <summary>
         /// Constructor de la clase
         /// </summary>
         /// <param name="context"></param>
         /// <param name="validator"></param>
-        public LibroController(AppDbContext context, IValidator<LibroDto> validator)
+        /// <param name="locService"></param>
+        public LibroController(AppDbContext context, IValidator<LibroDto> validator, LocService locService)
         {
             _context = context;
-            _libroDAO = new LibroDAO(_context);
+            _locService = locService;
             _validator = validator;
+            _libroDAO = new LibroDAO(_context, _locService);            
         }
 
         /// <summary>
@@ -63,7 +67,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Libro no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Libro"),
                     status = 404,
                     errors = new Dictionary<string, List<string>>
             {
@@ -100,7 +104,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Autor no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Autor"),
                     status = 404,
                     errors = null
                 });
@@ -112,7 +116,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Categoria no encontrada",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Categoria"),
                     status = 404,
                     errors = null
                 });
@@ -124,7 +128,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al guardar el libro",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -132,7 +136,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Libro Guardado",
+                title = String.Format(_locService.GetLocalizedString("Success"), "Libro"),
                 errors = null,
                 status = 201
 
@@ -154,7 +158,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Libro no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Libro"),
                     status = 404,
                     errors = null
                 });
@@ -166,7 +170,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Autor no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Autor"),
                     status = 404,
                     errors = null
                 });
@@ -178,7 +182,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Categoria no encontrada",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Categoria"),
                     status = 404,
                     errors = null
                 });
@@ -203,7 +207,7 @@ namespace Backend.Controllers
             {
                 return BadRequest(new ApiResponseDto
                 {
-                    title = "Hubo un problema al actualizar el libro",
+                    title = String.Format(_locService.GetLocalizedString("ErrorRequest")),
                     status = 400,
                     errors = null
                 });
@@ -211,7 +215,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Libro Actualizado",
+                title = String.Format(_locService.GetLocalizedString("Updated"), "Libro"),
                 errors = null,
                 status = 200
             });
@@ -230,7 +234,7 @@ namespace Backend.Controllers
             {
                 return NotFound(new ApiResponseDto
                 {
-                    title = "Libro no encontrado",
+                    title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Libro"),
                     status = 404,
                     errors = null
                 });
@@ -238,7 +242,7 @@ namespace Backend.Controllers
 
             return Ok(new ApiResponseDto
             {
-                title = "Libro Eliminado",
+                title = String.Format(_locService.GetLocalizedString("Deleted"), "Libro"),
                 errors = null,
                 status = 200
             });
