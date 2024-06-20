@@ -8,12 +8,12 @@ namespace Backend.Mapper
     /// <summary>
     /// Mapeo de las respuestas las clases
     /// </summary>
-    public class MapperAutentication: Profile
+    public class MapperClass: Profile
     {
         /// <summary>
         /// Mapeo de las repuestas
         /// </summary>
-        public MapperAutentication()
+        public MapperClass()
         {
             CreateMap<Prestamo, PrestamoDtoResponse>()
                 .ForMember(a => a.Autenticacion, opt => opt.MapFrom(src => src.Autenticacion))

@@ -71,7 +71,7 @@ namespace Backend
             services.AddDbContext<AppDbContext>(options =>
                 options.UseMySql(Configuration.GetConnectionString("DefaultConnection"), serverVersion));
 
-            services.AddAutoMapper(typeof(MapperAutentication));
+            services.AddAutoMapper(typeof(MapperClass));
 
             services.AddIdentity<Authentication, IdentityRole>(
                 opt =>
