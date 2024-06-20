@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Runtime.Serialization;
 
 namespace Backend.Models
 {
@@ -45,7 +46,7 @@ namespace Backend.Models
 
         /// <summary>
         /// id del autor
-        /// </summary>
+        /// </summary>        
         [Column(TypeName = "Varchar(255)")]
         public string? AutorId { get; set; }
 

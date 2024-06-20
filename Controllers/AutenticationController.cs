@@ -820,7 +820,6 @@ namespace Backend.Controllers
             {
                 new Claim(JwtRegisteredClaimNames.Sid, user.Id),
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserName!),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
             // Agregar cada rol como un claim
@@ -836,7 +835,7 @@ namespace Backend.Controllers
             issuer: _configuration["JWTSetting:ValidIssuer"],
             audience: _configuration["JWTSetting:ValidAudience"],
             claims: claims,
-            expires: DateTime.Now.AddMinutes(30),
+            expires: DateTime.Now.AddMinutes(60),
             signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);

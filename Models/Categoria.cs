@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Models
@@ -32,5 +33,15 @@ namespace Backend.Models
         [StringLength(80)]
         [Column(TypeName = "Varchar(80")]
         public string? Nombre { get; set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:Backend.Models.Categoria"/> class.
+        /// </summary>
+        public Categoria() => LibrosEscritos = new Collection<Libro>();
+
+        /// <summary>
+        /// Obtiene los libros escritos
+        /// </summary>
+        public virtual ICollection<Libro> LibrosEscritos { get; set; }
     }
 }

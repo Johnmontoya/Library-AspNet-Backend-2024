@@ -7,6 +7,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.OData.Query;
+using Microsoft.AspNetCore.OData.Routing.Controllers;
 
 namespace Backend.Controllers
 {
@@ -16,7 +18,7 @@ namespace Backend.Controllers
     [Authorize(Roles = "User")]
     [Route("api/[controller]")]
     [ApiController]
-    public class AutorController : ControllerBase
+    public class AutorController : ODataController
     {
         private readonly AppDbContext _context;
         private AutorDAO _autorDAO;
@@ -42,10 +44,11 @@ namespace Backend.Controllers
         /// </summary>
         /// <returns></returns>
         [AllowAnonymous]
+        [EnableQuery]
         [HttpGet]
-        public async Task<ActionResult<Autor>> GetAll()
+        public ActionResult<IQueryable<Autor>> GetAll()
         {
-            var autores = await _autorDAO.ObtenerTodoAsync();
+            var autores = _context.Autors;
             return Ok(autores);
         }
 
@@ -55,12 +58,24 @@ namespace Backend.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [AllowAnonymous]
+        [EnableQuery]
         [HttpGet("{id}")]
-        public async Task<ActionResult<Autor>> GetId([FromRoute] string id)
+        public ActionResult<IQueryable<Autor>> GetId([FromRoute] string id)
         {
             try
             {
-                var autores = await _autorDAO.ObtenerPorIdAsync(id);
+                var autores = _context.Autors.Where(a => a.Id == id);
+
+                if (autores == null)
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Autor"),
+                        status = 404,
+                        errors = null
+                    });
+                }
+
                 return Ok(autores);
             }
             catch (KeyNotFoundException ex)

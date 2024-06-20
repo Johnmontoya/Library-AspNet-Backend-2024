@@ -1,4 +1,7 @@
-﻿using Backend.DAO;
+﻿using AutoMapper;
+using AutoMapper.AspNet.OData;
+using AutoMapper.QueryableExtensions;
+using Backend.DAO;
 using Backend.Database;
 using Backend.Dtos;
 using Backend.Models;
@@ -7,6 +10,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.OData.Query;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace Backend.Controllers
@@ -23,6 +28,7 @@ namespace Backend.Controllers
         private PrestamoDAO _prestamoDAO;
         private readonly UserManager<Authentication> _userManager;
         private readonly LocService _locService;
+        private readonly IMapper _mapper;
 
         /// <summary>
         /// Constructor de la clase
@@ -30,11 +36,17 @@ namespace Backend.Controllers
         /// <param name="context"></param>
         /// <param name="userManager"></param>
         /// <param name="locService"></param>
-        public PrestamoController(AppDbContext context, UserManager<Authentication> userManager, LocService locService)
+        /// <param name="mapper"></param>
+        public PrestamoController(
+            AppDbContext context, 
+            UserManager<Authentication> userManager, 
+            LocService locService,
+            IMapper mapper)
         {
             _context = context;
             _locService = locService;            
             _userManager = userManager;
+            _mapper = mapper;
             _prestamoDAO = new PrestamoDAO(_context, _locService);
         }
 
@@ -44,10 +56,9 @@ namespace Backend.Controllers
         /// <returns></returns>
         [Authorize(Roles = "User")]
         [HttpGet]
-        public async Task<ActionResult<Prestamo>> GetAll()
+        public async Task<ActionResult> GetAll(ODataQueryOptions<PrestamoDtoResponse> options)
         {
-            var prestamos = await _prestamoDAO.ObtenerTodoAsync();
-            return Ok(prestamos);
+            return Ok(await _context.Prestamos.GetQueryAsync(_mapper, options));
         }
 
         /// <summary>
@@ -56,12 +67,32 @@ namespace Backend.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpGet("{id}")]
-        public async Task<ActionResult<Prestamo>> GetId([FromRoute] string id)
+        public async Task<ActionResult<PrestamoDtoResponse>> GetId([FromRoute] string id, ODataQueryOptions<PrestamoDtoResponse> options)
         {
             try
             {
-                var prestamo = await _prestamoDAO.ObtenerPorIdAsync(id);
-                return Ok(prestamo);
+                // Busca el préstamo por ID
+                var prestamo = await _context.Prestamos
+                    .Include(p => p.Autenticacion)
+                    .Include(p => p.Libro)
+                    .Where(p => p.Id == id)
+                    .FirstOrDefaultAsync();
+
+                // Si no se encuentra el préstamo, lanza una excepción
+                if (prestamo == null)
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Prestamo"),
+                        status = 404,
+                        errors = null
+                    });
+                }
+
+                // Mapea el préstamo a PrestamoDtoResponse
+                var prestamoDto = _mapper.Map<PrestamoDtoResponse>(prestamo);
+
+                return Ok(prestamoDto);
             }
             catch (KeyNotFoundException ex)
             {

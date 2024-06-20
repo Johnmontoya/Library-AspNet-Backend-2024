@@ -7,6 +7,9 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.OData.Formatter;
+using Microsoft.AspNetCore.OData.Query;
+using Microsoft.AspNetCore.OData.Routing.Controllers;
 using System;
 using static Org.BouncyCastle.Crypto.Engines.SM2Engine;
 
@@ -18,7 +21,7 @@ namespace Backend.Controllers
     [Authorize(Roles = "User")]
     [Route("api/[controller]")]
     [ApiController]
-    public class CategoriaController: ControllerBase
+    public class CategoriaController: ODataController
     {
         private readonly AppDbContext _context;
         private CategoriaDAO _categoriaDAO;
@@ -44,10 +47,11 @@ namespace Backend.Controllers
         /// </summary>
         /// <returns></returns>
         [AllowAnonymous]
+        [EnableQuery]
         [HttpGet]
-        public async Task<ActionResult<Categoria>> GetAll()
+        public ActionResult<IQueryable<Categoria>> GetAll()
         {
-            var categorias = await _categoriaDAO.ObtenerTodoAsync();
+            var categorias = _context.Categorias;
             return Ok(categorias);
         }
 
@@ -57,12 +61,24 @@ namespace Backend.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [AllowAnonymous]
+        [EnableQuery]
         [HttpGet("{id}")]
-        public async Task<ActionResult<Categoria>> GetId([FromRoute] string id)
+        public ActionResult<IQueryable<Categoria>> GetId([FromRoute] string id)
         {
             try
             {
-                var categoria = await _categoriaDAO.ObtenerPorIdAsync(id);
+                var categoria = _context.Categorias.Where(c => c.Id == id);
+
+                if(categoria == null)
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        title = String.Format(_locService.GetLocalizedString("NotFoundSpecific"), "Categoria"),
+                        status = 404,
+                        errors = null
+                    });
+                }
+
                 return Ok(categoria);
             }
             catch(KeyNotFoundException ex)

@@ -21,6 +21,10 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Options;
 using Backend.Core.Errors;
 using Backend.Core.OTP;
+using Microsoft.OData.Edm;
+using Microsoft.OData.ModelBuilder;
+using Microsoft.AspNetCore.OData;
+using Backend.Mapper;
 
 namespace Backend
 {
@@ -66,7 +70,9 @@ namespace Backend
 
             services.AddDbContext<AppDbContext>(options =>
                 options.UseMySql(Configuration.GetConnectionString("DefaultConnection"), serverVersion));
-            
+
+            services.AddAutoMapper(typeof(MapperAutentication));
+
             services.AddIdentity<Authentication, IdentityRole>(
                 opt =>
                 {
@@ -76,6 +82,7 @@ namespace Backend
                     opt.Lockout.AllowedForNewUsers = true;
                     opt.User.RequireUniqueEmail = true;
                 })
+                .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddDefaultTokenProviders()
                 .AddErrorDescriber<CustomValidationIdentityError>()
@@ -84,7 +91,16 @@ namespace Backend
             services.AddControllers()
                 .AddJsonOptions(options => {
                     options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                });
+                })
+                .AddOData(
+                options => options.AddRouteComponents("odata", GetEdmModel())
+                    .Select()
+                    .Filter()
+                    .OrderBy()
+                    .Expand()
+                    .Count()
+                    .SetMaxTop(null)
+                );
             
                 /*.AddJsonOptions(options =>
                 {
@@ -258,6 +274,16 @@ namespace Backend
                     };
                 }).RequireAuthorization();*/
             });
+        }
+
+        private static IEdmModel GetEdmModel()
+        {
+            ODataConventionModelBuilder builder = new ODataConventionModelBuilder();
+            builder.EntitySet<Autor>("Autors");
+            builder.EntitySet<Categoria>("Categorias");
+            builder.EntitySet<Libro>("Libros");
+            builder.EntitySet<Prestamo>("Prestamos");
+            return builder.GetEdmModel();
         }
     }
 }

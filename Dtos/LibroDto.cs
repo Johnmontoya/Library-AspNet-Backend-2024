@@ -1,4 +1,6 @@
-﻿namespace Backend.Dtos
+﻿using System.Runtime.Serialization;
+
+namespace Backend.Dtos
 {
     /// <summary>
     /// Registro de libro
@@ -29,5 +31,22 @@
         /// Id del autor
         /// </summary>
         public string? AutorId { get; set; }
+    }
+
+    /// <summary>
+    /// Respuesta para el Mapper de Libro
+    /// </summary>
+    public class LibroDtoResponse
+    {
+        /// <summary>
+        /// Nombre del libro
+        /// </summary>
+        public string? Nombre { get; set; }
+
+        /// <summary>
+        /// Editorial del libro
+        /// </summary>
+        public string? Editorial { get; set; }
+
     }
 }

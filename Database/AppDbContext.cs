@@ -29,6 +29,8 @@ namespace Backend.Database
                 NormalizedName = "USER"
             });
             builder.ApplyConfiguration(new UsuarioConfiguration());
+            builder.ApplyConfiguration(new AutorConfiguration());
+            builder.ApplyConfiguration(new CategoriaConfiguration());
             base.OnModelCreating(builder);
         }
 
